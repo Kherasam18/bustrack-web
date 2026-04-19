@@ -45,3 +45,44 @@ export async function verifySchoolAdminOtp(otp, twoFactorToken) {
   );
   return response.data.data;
 }
+
+/**
+ * Sends a password reset OTP to the School Admin's registered email.
+ * The user is unauthenticated — skipAuth prevents token injection.
+ * @param {string} email
+ * @returns {Promise<void>}
+ */
+export async function forgotPasswordSchoolAdmin(email) {
+  await api.post(
+    '/api/auth/school-admin/forgot-password',
+    { email },
+    { skipAuth: true },
+  );
+}
+
+/**
+ * Resets the School Admin password using the OTP received by email.
+ * All three values (email, otp, newPassword) are submitted together.
+ * @param {string} email
+ * @param {string} otp — 6-digit OTP string
+ * @param {string} newPassword
+ * @returns {Promise<void>}
+ */
+export async function resetPasswordSchoolAdmin(email, otp, newPassword) {
+  await api.post(
+    '/api/auth/school-admin/reset-password',
+    { email, otp, newPassword },
+    { skipAuth: true },
+  );
+}
+
+/**
+ * Resends the password reset OTP by calling the same forgot-password endpoint.
+ * Thin wrapper for readability — the backend has no dedicated resend endpoint.
+ * @param {string} email
+ * @returns {Promise<void>}
+ */
+export async function resendForgotPasswordOtp(email) {
+  await forgotPasswordSchoolAdmin(email);
+}
+
