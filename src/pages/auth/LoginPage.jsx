@@ -114,9 +114,9 @@ export default function LoginPage() {
     try {
       if (mode === 'school-admin') {
         // Step 1 of 2-step flow — get the twoFactorToken, then navigate to OTP
-        const { twoFactorToken } = await loginSchoolAdmin(email.trim(), password);
+        const { twoFAToken } = await loginSchoolAdmin(email.trim(), password);
         await wait(800);
-        navigate('/verify-otp', { state: { twoFactorToken } });
+        navigate('/verify-otp', { state: { twoFactorToken: twoFAToken } });
       } else {
         // Single-step Super Admin flow — authenticate and redirect
         const { token: authToken, user: authUser } = await loginSuperAdmin(email.trim(), password);
