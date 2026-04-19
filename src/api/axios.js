@@ -15,7 +15,10 @@ const api = axios.create({
  */
 api.interceptors.request.use(
   (config) => {
-    const token = useAuthStore.getState().token;
+    // Skip auth header injection if the request opts out (e.g. twoFactorToken flows)
+    if (config.skipAuth) return config;
+
+    const { token } = useAuthStore.getState();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
