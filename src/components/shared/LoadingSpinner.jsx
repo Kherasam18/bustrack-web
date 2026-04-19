@@ -1,10 +1,12 @@
-// src/components/shared/LoadingSpinner.jsx — Loading spinner component (placeholder)
-// Placeholder — to be implemented in a future phase
-export default function LoadingSpinner() {
+// src/components/shared/LoadingSpinner.jsx — Accessible loading spinner — use wherever an async operation is in progress
+export default function LoadingSpinner({ message = 'Loading...' }) {
   return (
-    <div className="p-6">
-      <h1 className="text-xl font-semibold text-gray-700">LoadingSpinner</h1>
-      <p className="text-gray-400 mt-1">This page has not been built yet.</p>
+    <div role="status" aria-live="polite" className="flex flex-col items-center justify-center gap-2">
+      <div
+        className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-slate-700"
+        aria-hidden="true"
+      />
+      <span className="text-sm text-gray-500">{message}</span>
     </div>
   );
 }

@@ -17,6 +17,9 @@ function hydrateFromStorage() {
     const user = raw ? JSON.parse(raw) : null;
     return { user, token };
   } catch (_) {
+    // Clear corrupt persisted data so the app self-heals on next load
+    localStorage.removeItem(STORAGE_KEYS.TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.USER);
     return { user: null, token: null };
   }
 }

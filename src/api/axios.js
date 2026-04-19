@@ -25,16 +25,21 @@ api.interceptors.request.use(
 );
 
 /**
- * Response interceptor — on a 401 Unauthorized response, clears auth state
- * and redirects the user to the login page. All other errors are re-thrown
- * so calling code can handle them.
+ * Response interceptor — on a 401 Unauthorized response from an active session,
+ * clears auth state and redirects to login. Unauthenticated 401s (e.g. login
+ * form wrong-password) are passed through so calling code can handle them.
  */
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      useAuthStore.getState().clearAuth();
-      window.location.href = '/login';
+    if (error.response?.status === 401) {
+      const { token } = useAuthStore.getState();
+      if (token) {
+        // Active session got a 401 — force logout
+        useAuthStore.getState().clearAuth();
+        window.location.href = '/login';
+      }
+      // No active session — let the calling code handle the 401 (e.g. login form)
     }
     return Promise.reject(error);
   },

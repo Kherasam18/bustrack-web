@@ -24,7 +24,7 @@ import NotificationsPage from './pages/school-admin/NotificationsPage';
 function ProtectedRoute({ requiredRole }) {
   const { token, user } = useAuthStore();
 
-  if (!token) {
+  if (!token || !user) {
     return <Navigate to="/login" replace />;
   }
 
@@ -78,7 +78,7 @@ export default function App() {
         <Route path="/" element={<RootRedirect />} />
 
         {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<RootRedirect />} />
       </Routes>
     </BrowserRouter>
   );
