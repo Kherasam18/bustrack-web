@@ -71,7 +71,7 @@ export async function forgotPasswordSchoolAdmin(email) {
 export async function resetPasswordSchoolAdmin(email, otp, newPassword) {
   await api.post(
     '/api/auth/school-admin/reset-password',
-    { email, otp, newPassword },
+    { email, otp, new_password: newPassword },
     { skipAuth: true },
   );
 }
