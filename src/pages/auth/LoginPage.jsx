@@ -43,11 +43,13 @@ export default function LoginPage() {
   // Clears field-level error when user starts typing
   const handleEmailChange = useCallback((e) => {
     setEmail(e.target.value);
+    setApiError('');
     setFieldErrors((prev) => ({ ...prev, email: '' }));
   }, []);
 
   const handlePasswordChange = useCallback((e) => {
     setPassword(e.target.value);
+    setApiError('');
     setFieldErrors((prev) => ({ ...prev, password: '' }));
   }, []);
 
@@ -250,7 +252,6 @@ export default function LoginPage() {
                     size="icon"
                     className="absolute right-0 top-0 h-10 w-10 text-slate-400 hover:text-slate-600"
                     onClick={() => setShowPassword((prev) => !prev)}
-                    tabIndex={-1}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
