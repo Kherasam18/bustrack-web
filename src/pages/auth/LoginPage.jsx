@@ -1,6 +1,6 @@
 // src/pages/auth/LoginPage.jsx — Two-mode login page for School Admin (2-step) and Super Admin (single-step) flows
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
 import { ROLES, getDefaultRoute } from '../../utils/roles';
 import { loginSchoolAdmin, loginSuperAdmin } from '../../api/auth.api';
@@ -20,6 +20,7 @@ function wait(ms) {
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { token, user, setAuth } = useAuthStore();
 
   // Form state
@@ -33,12 +34,28 @@ export default function LoginPage() {
   const [apiError, setApiError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Banner messages from other pages via router state
+  const [successBanner, setSuccessBanner] = useState('');
+  const [infoBanner, setInfoBanner] = useState('');
+
   // Redirect guard — if already authenticated, send to dashboard
   useEffect(() => {
     if (token && user) {
       navigate(getDefaultRoute(user.role), { replace: true });
     }
   }, [token, user, navigate]);
+
+  // Read and clear router state messages on mount (from ForgotPassword / VerifyOTP)
+  useEffect(() => {
+    const state = location.state;
+    if (state?.successMessage) {
+      setSuccessBanner(state.successMessage);
+      navigate(location.pathname, { replace: true, state: {} });
+    } else if (state?.resendMessage) {
+      setInfoBanner(state.resendMessage);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, []);
 
   // Clears field-level error when user starts typing
   const handleEmailChange = useCallback((e) => {
@@ -61,6 +78,8 @@ export default function LoginPage() {
     setShowPassword(false);
     setFieldErrors({});
     setApiError('');
+    setSuccessBanner('');
+    setInfoBanner('');
   }
 
   // Validates inputs and returns true if the form is valid
@@ -191,6 +210,22 @@ export default function LoginPage() {
                 Enter your credentials to access the dashboard.
               </p>
             </div>
+
+            {/* Success banner — shown after password reset from ForgotPasswordPage */}
+            {successBanner && (
+              <div role="alert" className="mb-4 rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800 flex items-start gap-2">
+                <span aria-hidden="true">✓</span>
+                <span>{successBanner}</span>
+              </div>
+            )}
+
+            {/* Info banner — shown when redirected back from VerifyOTPPage resend */}
+            {infoBanner && (
+              <div role="alert" className="mb-4 rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
+                <span aria-hidden="true">ℹ</span>
+                <span>{infoBanner}</span>
+              </div>
+            )}
 
             {/* API-level error message */}
             {apiError && (
