@@ -55,6 +55,9 @@ export default function ForgotPasswordPage() {
   const [apiError, setApiError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Explicit flag for OTP expiry in Step 3 — drives restart button visibility
+  const [otpExpired, setOtpExpired] = useState(false);
+
   // Resend cooldown timer (seconds remaining)
   const [cooldown, setCooldown] = useState(0);
 
@@ -124,6 +127,7 @@ export default function ForgotPasswordPage() {
     try {
       await forgotPasswordSchoolAdmin(email.trim());
       // Advance to OTP step and start the resend timer
+      setOtpExpired(false);
       setStep('otp');
       setCooldown(RESEND_COOLDOWN);
       setFieldErrors({});
@@ -265,13 +269,20 @@ export default function ForgotPasswordPage() {
         state: { successMessage: 'Password reset successful. Please log in with your new password.' },
       });
     } catch (err) {
-      const message =
-        err.response?.data?.message || 'Failed to reset password. Your OTP may have expired — please try again.';
-      setApiError(message);
+      const baseMessage =
+        err.response?.data?.message ||
+        'Failed to reset password. Your OTP may have expired — please try again.';
 
-      // If the error is OTP-related (401), the user needs to restart the flow
+      const finalMessage =
+        err.response?.status === 401
+          ? `${baseMessage} Please try again from the beginning.`
+          : baseMessage;
+
+      setApiError(finalMessage);
+
+      // Set otpExpired flag when backend returns 401 (OTP invalid or expired)
       if (err.response?.status === 401) {
-        setApiError(message + ' You can start over from the beginning.');
+        setOtpExpired(true);
       }
     } finally {
       setIsLoading(false);
@@ -292,8 +303,20 @@ export default function ForgotPasswordPage() {
       setShowNewPassword(false);
       setShowConfirmPassword(false);
     }
+    setOtpExpired(false);
     setStep(targetStep);
   }
+
+  const handleRestart = () => {
+    setOtpExpired(false);
+    setStep('email');
+    setEmail('');
+    setVerifiedOtp('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setApiError('');
+    setFieldErrors({});
+  };
 
   // ────────────────────────────────────────────────────────────
   // Render
@@ -409,18 +432,10 @@ export default function ForgotPasswordPage() {
               >
                 {apiError}
                 {/* Offer restart link on OTP-expired errors in Step 3 */}
-                {step === 'password' && apiError.includes('start over') && (
+                {step === 'password' && otpExpired && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setEmail('');
-                      setVerifiedOtp('');
-                      setNewPassword('');
-                      setConfirmPassword('');
-                      setApiError('');
-                      setFieldErrors({});
-                      setStep('email');
-                    }}
+                    onClick={handleRestart}
                     className="mt-2 block font-medium text-red-800 underline underline-offset-2 hover:text-red-900"
                   >
                     Try again from the beginning
