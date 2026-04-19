@@ -38,7 +38,10 @@ export async function verifySchoolAdminOtp(otp, twoFactorToken) {
   const response = await api.post(
     '/api/auth/school-admin/verify-otp',
     { otp },
-    { headers: { Authorization: `Bearer ${twoFactorToken}` } },
+    {
+      headers: { Authorization: `Bearer ${twoFactorToken}` },
+      skipAuth: true, // Prevent the Axios interceptor from overwriting this header
+    },
   );
   return response.data.data;
 }

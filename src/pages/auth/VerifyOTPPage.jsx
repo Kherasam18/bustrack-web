@@ -124,7 +124,6 @@ export default function VerifyOTPPage() {
   // ── Clears all OTP boxes and moves focus to the first one ──
   function resetOtpInputs() {
     setDigits(Array(OTP_LENGTH).fill(''));
-    inputRefs.current[0]?.focus();
   }
 
   // ── Handles form submission — validates, calls API, stores auth ──
@@ -159,8 +158,9 @@ export default function VerifyOTPPage() {
 
       // Clear inputs so the user can re-enter
       resetOtpInputs();
-    } finally {
       setIsLoading(false);
+      // Focus first input now that inputs are re-enabled
+      inputRefs.current[0]?.focus();
     }
   }
 
