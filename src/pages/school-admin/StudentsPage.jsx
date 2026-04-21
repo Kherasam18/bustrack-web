@@ -107,18 +107,19 @@ function parseCSVLine(line) {
  * Reusable Modal shell — Escape close + manual focus trap
  * ────────────────────────────────────────────────────────── */
 
-function Modal({ open, onClose, title, wide, children }) {
+function Modal({ open, onClose, title, wide, disableClose = false, children }) {
   const dialogRef = useRef(null);
 
   // Close on Escape key
   useEffect(() => {
     if (!open) return;
     function onKey(e) {
-      if (e.key === 'Escape') onClose();
+      // Prevent closing when a mutation is in flight
+      if (e.key === 'Escape' && !disableClose) onClose();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open, onClose, disableClose]);
 
   // Focus trap: save previous focus, constrain Tab, restore on close
   useEffect(() => {
@@ -177,7 +178,7 @@ function Modal({ open, onClose, title, wide, children }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-black/50" onClick={disableClose ? undefined : onClose} aria-hidden="true" />
       <div
         ref={dialogRef}
         role="dialog"
@@ -194,7 +195,8 @@ function Modal({ open, onClose, title, wide, children }) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"
+            disabled={disableClose}
+            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-40 disabled:cursor-not-allowed"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
@@ -286,7 +288,7 @@ function StudentModal({ modal, onClose, onSuccess }) {
   }
 
   return (
-    <Modal open={modal.open} onClose={onClose} title={isEdit ? 'Edit Student' : 'Add Student'}>
+    <Modal open={modal.open} onClose={onClose} title={isEdit ? 'Edit Student' : 'Add Student'} disableClose={saving}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="student-name" className="mb-1 block text-sm font-medium text-slate-700">
@@ -393,10 +395,12 @@ function ParentModal({ modal, onClose }) {
     setIsLoadingParents(true);
     setLinkError(null);
     try {
-      const data = await getStudent(modal.studentId);
+      // getStudent returns the student object directly (response.data.data)
+      // — not wrapped in { student: ... }
+      const student = await getStudent(modal.studentId);
       // Only commit if this is still the latest request
       if (token === parentRequestRef.current) {
-        setParents(data.student?.parents || []);
+        setParents(student.parents || []);
       }
     } catch (err) {
       // Only commit if this is still the latest request
@@ -454,7 +458,7 @@ function ParentModal({ modal, onClose }) {
   }
 
   return (
-    <Modal open={modal.open} onClose={onClose} title={`Manage Parents — ${modal.studentName}`} wide>
+    <Modal open={modal.open} onClose={onClose} title={`Manage Parents — ${modal.studentName}`} wide disableClose={linking || !!unlinkingId}>
       {/* Current parents list */}
       {isLoadingParents ? (
         <div className="flex items-center gap-2 py-6 justify-center text-slate-400">
@@ -732,7 +736,7 @@ function ImportModal({ modal, onClose, onDone }) {
   const hasErrors = rowErrors.some((e) => e !== null);
 
   return (
-    <Modal open={modal.open} onClose={onClose} title="Bulk Import Students" wide>
+    <Modal open={modal.open} onClose={onClose} title="Bulk Import Students" wide disableClose={importing}>
       {/* ── Step 1: Upload ─────────────────────────── */}
       {step === 'upload' && (
         <div className="space-y-4">
@@ -972,7 +976,7 @@ function ConfirmModal({ modal, onClose, onConfirm }) {
   };
 
   return (
-    <Modal open={modal.open} onClose={onClose} title={titles[modal.action] || 'Confirm'}>
+    <Modal open={modal.open} onClose={onClose} title={titles[modal.action] || 'Confirm'} disableClose={confirming}>
       <div className="space-y-4">
         <p className="text-sm text-slate-600">{modal.label}</p>
         {confirmError && <p className="text-sm text-red-600">{confirmError}</p>}
