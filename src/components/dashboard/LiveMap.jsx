@@ -42,8 +42,12 @@ function getMinutesAgoText(isoTimestamp) {
  * @param {*} val
  * @returns {boolean}
  */
-function isValidCoord(val) {
-  return typeof val === 'number' && Number.isFinite(val);
+// Validate finite number and geographic range
+// isLat=true enforces -90..90, isLat=false enforces -180..180
+function isValidCoord(val, isLat = false) {
+  if (typeof val !== 'number' || !Number.isFinite(val)) return false;
+  if (isLat) return val >= -90 && val <= 90;
+  return val >= -180 && val <= 180;
 }
 
 /**
@@ -57,7 +61,7 @@ export default function LiveMap({ lat, lng, trackingStatus, lastLocationAt }) {
   });
 
   // Determine whether we have valid coordinates to show
-  const hasLocation = isValidCoord(lat) && isValidCoord(lng);
+  const hasLocation = isValidCoord(lat, true) && isValidCoord(lng, false);
 
   // Compute map centre and zoom based on location availability
   const center = hasLocation ? { lat, lng } : DEFAULT_CENTER;

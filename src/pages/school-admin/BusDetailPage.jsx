@@ -52,6 +52,11 @@ const MAX_LOG_ROWS = 100;
  */
 function formatTimeShort(time) {
   if (!time) return '—';
+  // Split on ':' and pad hour to handle both HH:MM:SS and H:MM:SS
+  const parts = time.split(':');
+  if (parts.length >= 2) {
+    return `${parts[0].padStart(2, '0')}:${parts[1]}`;
+  }
   return time.slice(0, 5);
 }
 
@@ -190,7 +195,8 @@ function JourneyCard({ title, journey }) {
           <div className="flex flex-wrap items-center gap-2">
             {flags.map((flag) => {
               // Resolved flags are shown with reduced opacity and a check mark
-              const isResolved = flag.resolved_at !== null;
+              // Use Boolean() so undefined resolved_at is treated as unresolved
+              const isResolved = Boolean(flag.resolved_at);
               return (
                 <div key={flag.flag_id} className="flex items-center gap-1">
                   <span className={isResolved ? 'opacity-50' : ''}>
@@ -249,13 +255,18 @@ export default function BusDetailPage() {
    * Fetches bus detail and (conditionally) the location log on mount.
    */
   useEffect(() => {
+    // Create abort controller to cancel in-flight requests on unmount
+    const controller = new AbortController();
+
     async function fetchData() {
       setIsLoading(true);
       setError(null);
 
       try {
         // Fetch bus detail
-        const busResponse = await api.get(`/api/dashboard/buses/${busId}`);
+        const busResponse = await api.get(`/api/dashboard/buses/${busId}`,
+          { signal: controller.signal }
+        );
         const busData = busResponse.data.data.bus;
         setBus(busData);
 
@@ -265,7 +276,7 @@ export default function BusDetailPage() {
         // Fetch location log only when a valid journey_id exists
         if (activeJourney?.journey_id) {
           try {
-            const logData = await getJourneyLocationLog(activeJourney.journey_id);
+            const logData = await getJourneyLocationLog(activeJourney.journey_id, controller.signal);
             setLocationLog(logData);
           } catch (_) {
             // Location log fetch failure is non-critical — page still renders
@@ -273,6 +284,8 @@ export default function BusDetailPage() {
           }
         }
       } catch (err) {
+        // Ignore abort errors — component unmounted before fetch completed
+        if (err.name === 'CanceledError' || err.name === 'AbortError') return;
         const message =
           err.response?.data?.message || 'Failed to load bus details';
         setError(message);
@@ -282,6 +295,9 @@ export default function BusDetailPage() {
     }
 
     fetchData();
+
+    // Abort any in-flight requests when the component unmounts
+    return () => controller.abort();
   }, [busId]);
 
   // Determine which journey provides the map data
@@ -382,9 +398,16 @@ export default function BusDetailPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {locationLog.points.slice(-MAX_LOG_ROWS).map((point, index) => (
-                      <tr key={point.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-2 text-slate-500">{index + 1}</td>
+                    {(() => {
+                      // Offset row numbers to reflect true position in full points array
+                      const startIndex = Math.max(
+                        0,
+                        locationLog.points.length - MAX_LOG_ROWS
+                      );
+
+                      return locationLog.points.slice(-MAX_LOG_ROWS).map((point, index) => (
+                        <tr key={point.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-2 text-slate-500">{startIndex + index + 1}</td>
                         <td className="px-4 py-2 text-slate-700">
                           {formatTimeFromISO(point.recorded_at)}
                         </td>
@@ -399,8 +422,9 @@ export default function BusDetailPage() {
                             ? `${point.speed} km/h`
                             : '—'}
                         </td>
-                      </tr>
-                    ))}
+                        </tr>
+                      ));
+                    })()}
                   </tbody>
                 </table>
               </div>

@@ -10,7 +10,15 @@ import api from './axios';
  * @param {string} journeyId — UUID of the journey to fetch points for
  * @returns {Promise<{ journey_id: string, total: number, points: Array }>}
  */
-export async function getJourneyLocationLog(journeyId) {
-  const response = await api.get(`/api/location/journey/${journeyId}`);
+export async function getJourneyLocationLog(journeyId, signal) {
+  // Fail fast with a clear error rather than hitting the server
+  // with a malformed URL like /api/location/journey/undefined
+  if (!journeyId) {
+    throw new Error('journeyId is required');
+  }
+  const response = await api.get(
+    `/api/location/journey/${journeyId}`,
+    { signal }
+  );
   return response.data.data;
 }
