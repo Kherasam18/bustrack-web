@@ -24,13 +24,21 @@ export default function useDashboard() {
   // don't flip isLoading back to true.
   const hasFetchedOnce = useRef(false);
 
+  // Guards against overlapping in-flight fetches from setInterval ticks
+  const isFetchingRef = useRef(false);
+
   /**
    * Fetches both live fleet and stats endpoints in parallel.
    * On success: updates buses + stats, clears any previous error, records timestamp.
    * On failure: sets a user-facing error message.
    */
   const fetchDashboard = useCallback(async () => {
-    // Only show loading skeleton before the first successful fetch
+    // Skip if a fetch is already in flight — prevents overlapping requests
+    // and out-of-order state updates from slow responses
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
+    // Only show loading skeleton before the first fetch attempt
     if (!hasFetchedOnce.current) {
       setIsLoading(true);
     }
@@ -45,13 +53,16 @@ export default function useDashboard() {
       setStats(statsData);
       setError(null);
       setLastUpdated(new Date());
-      hasFetchedOnce.current = true;
     } catch (err) {
       // Derive a user-friendly error message from the API response
       const message =
         err.response?.data?.message || 'Failed to load dashboard data';
       setError(message);
     } finally {
+      isFetchingRef.current = false;
+      // Mark as fetched regardless of success/failure so the loading
+      // skeleton never re-appears after the first fetch attempt
+      hasFetchedOnce.current = true;
       // Always clear loading after first attempt regardless of outcome
       setIsLoading(false);
     }

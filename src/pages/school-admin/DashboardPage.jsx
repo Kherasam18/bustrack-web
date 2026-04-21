@@ -180,8 +180,9 @@ export default function DashboardPage() {
             <BusSkeletonCard key={i} />
           ))}
         </div>
-      ) : buses.length === 0 ? (
-        // Empty state — no buses in this school
+      ) : !error && buses.length === 0 ? (
+        // Only show empty state when fetch succeeded but returned no buses —
+        // not when the empty array is a result of a fetch error
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
             <Bus className="h-8 w-8 text-slate-400" />

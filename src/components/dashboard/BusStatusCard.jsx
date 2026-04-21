@@ -68,16 +68,19 @@ function formatDeparture(time) {
  * is not provided; returns "unknown" if tracking is degraded but no timestamp.
  */
 function getLastSeenText(pickup, drop) {
-  // Pick the most recent non-null last_location_at between pickup and drop
+  // Parse candidate timestamps from both journey legs
   const pickupAt = pickup?.last_location_at ? new Date(pickup.last_location_at) : null;
   const dropAt = drop?.last_location_at ? new Date(drop.last_location_at) : null;
 
-  let latest = null;
-  if (pickupAt && dropAt) {
-    latest = pickupAt > dropAt ? pickupAt : dropAt;
-  } else {
-    latest = pickupAt || dropAt;
-  }
+  // Filter out null and invalid Date objects before computing latest
+  const candidates = [pickupAt, dropAt].filter(
+    (d) => d !== null && !Number.isNaN(d.getTime())
+  );
+
+  // Pick the most recent valid date
+  const latest = candidates.length > 0
+    ? new Date(Math.max(...candidates.map((d) => d.getTime())))
+    : null;
 
   if (!latest) return 'Last seen: unknown';
 

@@ -26,7 +26,8 @@ const DEFAULT_CONFIG = { classes: 'bg-slate-100 text-slate-600' };
 export default function JourneyFlagBadge({ type }) {
   // Look up the config for this flag type, falling back to defaults
   const config = FLAG_CONFIG[type] || DEFAULT_CONFIG;
-  const label = config.label || type;
+  // Ensure label is always a non-empty string — type may be null or undefined
+  const label = config.label || type || 'Unknown';
 
   return (
     <span
