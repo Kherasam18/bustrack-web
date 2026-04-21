@@ -5,7 +5,7 @@
  * tracking status, flags, and a "last seen" indicator for degraded tracking.
  * The entire card is clickable and navigates to the bus detail page.
  */
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import JourneyFlagBadge from './JourneyFlagBadge';
 
@@ -115,8 +115,6 @@ function JourneyStatusBadge({ label, status }) {
  * @param {{ bus: object }} props — one item from the /api/dashboard/live buses array
  */
 export default function BusStatusCard({ bus }) {
-  const navigate = useNavigate();
-
   // Derive the worst tracking status across both journey legs
   const worstTracking = getWorstTrackingStatus(bus.pickup, bus.drop);
   const trackingDisplay = worstTracking ? TRACKING_DISPLAY[worstTracking] : null;
@@ -130,22 +128,9 @@ export default function BusStatusCard({ bus }) {
   // Determine whether the "last seen" line should be shown
   const showLastSeen = worstTracking === 'WEAK' || worstTracking === 'LOST';
 
-  /** Navigate to bus detail page on card click */
-  function handleCardClick() {
-    navigate(`/school-admin/buses/${bus.bus_id}`);
-  }
-
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={handleCardClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleCardClick();
-        }
-      }}
+    <Link
+      to={`/school-admin/buses/${bus.bus_id}`}
       className={cn(
         'cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-sm',
         'transition-shadow hover:shadow-md',
@@ -206,6 +191,6 @@ export default function BusStatusCard({ bus }) {
           {getLastSeenText(bus.pickup, bus.drop)}
         </p>
       )}
-    </div>
+    </Link>
   );
 }

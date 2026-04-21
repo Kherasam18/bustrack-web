@@ -12,12 +12,8 @@ import api from './axios';
  * @throws Re-throws the Axios error so calling code can handle it.
  */
 export async function getLiveFleet() {
-  try {
-    const response = await api.get('/api/dashboard/live');
-    return response.data.data;
-  } catch (err) {
-    throw err;
-  }
+  const response = await api.get('/api/dashboard/live');
+  return response.data.data;
 }
 
 /**
@@ -26,10 +22,6 @@ export async function getLiveFleet() {
  * @throws Re-throws the Axios error so calling code can handle it.
  */
 export async function getDashboardStats() {
-  try {
-    const response = await api.get('/api/dashboard/stats');
-    return response.data.data.stats;
-  } catch (err) {
-    throw err;
-  }
+  const response = await api.get('/api/dashboard/stats');
+  return response.data.data.stats;
 }
