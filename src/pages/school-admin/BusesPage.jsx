@@ -257,10 +257,11 @@ function BusModal({ modal, onClose, onSuccess }) {
     <Modal open={modal.open} onClose={onClose} title={isEdit ? 'Edit Bus' : 'Add Bus'}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="bus-number" className="mb-1 block text-sm font-medium text-slate-700">
             Bus Number <span className="text-red-500">*</span>
           </label>
           <input
+            id="bus-number"
             type="text"
             value={busNumber}
             onChange={(e) => setBusNumber(e.target.value)}
@@ -270,10 +271,11 @@ function BusModal({ modal, onClose, onSuccess }) {
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="bus-capacity" className="mb-1 block text-sm font-medium text-slate-700">
             Capacity
           </label>
           <input
+            id="bus-capacity"
             type="number"
             value={capacity}
             onChange={(e) => setCapacity(e.target.value)}
@@ -399,10 +401,11 @@ function RouteModal({ modal, onClose, onSuccess }) {
     <Modal open={modal.open} onClose={onClose} title={isEdit ? 'Edit Route' : 'Create Route'}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="route-name" className="mb-1 block text-sm font-medium text-slate-700">
             Route Name <span className="text-red-500">*</span>
           </label>
           <input
+            id="route-name"
             type="text"
             value={routeName}
             onChange={(e) => setRouteName(e.target.value)}
@@ -412,10 +415,11 @@ function RouteModal({ modal, onClose, onSuccess }) {
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="route-departure" className="mb-1 block text-sm font-medium text-slate-700">
             Departure Time {!isEdit && <span className="text-red-500">*</span>}
           </label>
           <input
+            id="route-departure"
             type="time"
             value={departure}
             onChange={(e) => setDeparture(e.target.value)}
@@ -551,10 +555,11 @@ function StopModal({ modal, onClose, onSuccess }) {
     <Modal open={modal.open} onClose={onClose} title={isEdit ? 'Edit Stop' : 'Add Stop'}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="stop-name" className="mb-1 block text-sm font-medium text-slate-700">
             Stop Name <span className="text-red-500">*</span>
           </label>
           <input
+            id="stop-name"
             type="text"
             value={stopName}
             onChange={(e) => setStopName(e.target.value)}
@@ -564,10 +569,11 @@ function StopModal({ modal, onClose, onSuccess }) {
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="stop-sequence" className="mb-1 block text-sm font-medium text-slate-700">
             Sequence Number <span className="text-red-500">*</span>
           </label>
           <input
+            id="stop-sequence"
             type="number"
             value={sequence}
             onChange={(e) => setSequence(e.target.value)}
@@ -580,10 +586,11 @@ function StopModal({ modal, onClose, onSuccess }) {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="stop-lat" className="mb-1 block text-sm font-medium text-slate-700">
               Latitude <span className="text-red-500">*</span>
             </label>
             <input
+              id="stop-lat"
               type="number"
               step="0.000001"
               value={lat}
@@ -594,10 +601,11 @@ function StopModal({ modal, onClose, onSuccess }) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="stop-lng" className="mb-1 block text-sm font-medium text-slate-700">
               Longitude <span className="text-red-500">*</span>
             </label>
             <input
+              id="stop-lng"
               type="number"
               step="0.000001"
               value={lng}
@@ -933,6 +941,8 @@ export default function BusesPage() {
   const hasFetchedRef = useRef(false);
   const debounceRef = useRef(null);
   const tableTopRef = useRef(null);
+  // Tracks pending reorder-error auto-clear timers keyed by busId
+  const reorderTimeoutsRef = useRef({});
 
   // Cancel any pending debounce timer when the component unmounts
   useEffect(() => {
@@ -941,6 +951,13 @@ export default function BusesPage() {
         clearTimeout(debounceRef.current);
         debounceRef.current = null;
       }
+    };
+  }, []);
+
+  // Clear all pending reorder error timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(reorderTimeoutsRef.current).forEach(clearTimeout);
     };
   }, []);
 
@@ -1021,8 +1038,8 @@ export default function BusesPage() {
       return;
     }
     setExpandedBusId(busId);
-    // Fetch route if not cached
-    if (!busRoute[busId] && !busRouteLoading[busId]) {
+    // Only fetch if not yet cached (undefined) — null means confirmed no route
+    if (busRoute[busId] === undefined && !busRouteLoading[busId]) {
       fetchRouteForBus(busId);
     }
   }
@@ -1167,11 +1184,15 @@ export default function BusesPage() {
       await reorderStops(busId, updated);
       refreshRoute(busId);
     } catch (err) {
-      // Show reorder failure inline in the route panel — auto-clears after 4s
+      // Show reorder failure inline — cancel any prior timer for this bus
       const msg = err.response?.data?.message || 'Failed to reorder stops';
       setReorderError((prev) => ({ ...prev, [busId]: msg }));
-      setTimeout(() => {
+      if (reorderTimeoutsRef.current[busId]) {
+        clearTimeout(reorderTimeoutsRef.current[busId]);
+      }
+      reorderTimeoutsRef.current[busId] = setTimeout(() => {
         setReorderError((prev) => ({ ...prev, [busId]: null }));
+        delete reorderTimeoutsRef.current[busId];
       }, 4000);
     }
   }
