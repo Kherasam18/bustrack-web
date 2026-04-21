@@ -127,9 +127,23 @@ function Modal({ open, onClose, title, wide, children }) {
 
     // Re-query live focusable elements on each Tab press
     function getFocusable() {
-      return dialogRef.current?.querySelectorAll(
+      const candidates = dialogRef.current?.querySelectorAll(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
       );
+      if (!candidates) return [];
+      // Filter to only visible, enabled, non-hidden elements
+      return Array.from(candidates).filter((el) => {
+        // Skip disabled form controls
+        if (el.disabled) return false;
+        // Skip elements hidden via attribute
+        if (el.hidden) return false;
+        // Skip aria-hidden elements
+        if (el.getAttribute('aria-hidden') === 'true') return false;
+        // Skip elements with no rendered box (display:none, visibility:hidden,
+        // or detached from layout like className="hidden")
+        if (!el.offsetParent && el.tagName !== 'BODY') return false;
+        return true;
+      });
     }
 
     // Set initial focus on the first focusable element
@@ -373,6 +387,9 @@ function ParentModal({ modal, onClose }) {
     if (!modal.studentId) return;
     // Increment token — only the latest request should commit
     const token = ++parentRequestRef.current;
+    // Clear stale parents immediately so old data doesn't show under
+    // the new student while loading
+    setParents([]);
     setIsLoadingParents(true);
     setLinkError(null);
     try {
@@ -384,6 +401,9 @@ function ParentModal({ modal, onClose }) {
     } catch (err) {
       // Only commit if this is still the latest request
       if (token === parentRequestRef.current) {
+        // Clear parents on failure — don't leave previous student's
+        // parents visible after a failed fetch
+        setParents([]);
         setLinkError(err.response?.data?.message || 'Failed to load parents');
       }
     } finally {
@@ -1026,6 +1046,8 @@ export default function StudentsPage() {
 
   /** Fetches the student list for the current filters. */
   const fetchStudents = useCallback(async (page, search, classF, sectionF, status) => {
+    // Create AbortController first — before any await — so cleanup
+    // can always call abort() regardless of how far the function ran
     const controller = new AbortController();
 
     if (!hasFetchedRef.current) {
@@ -1044,6 +1066,11 @@ export default function StudentsPage() {
       const data = await listStudents(params, controller.signal);
       // Only commit if not aborted
       if (!controller.signal.aborted) {
+        const totalPages = data.pagination?.total_pages || 1;
+        // Clamp currentPage if server now has fewer pages than we're on
+        if (currentPage > totalPages) {
+          setCurrentPage(totalPages);
+        }
         setStudents(data.students || []);
         setPagination(data.pagination || null);
         hasFetchedRef.current = true;
@@ -1060,7 +1087,7 @@ export default function StudentsPage() {
     }
 
     return controller;
-  }, []);
+  }, [currentPage]);
 
   // Single useEffect as fetch source — reacts to state changes
   useEffect(() => {
