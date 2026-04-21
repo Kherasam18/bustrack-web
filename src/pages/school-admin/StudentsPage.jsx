@@ -7,7 +7,7 @@
  * Bus assignment is excluded (Phase 7d-ii).
  * The page title is rendered by Topbar — no page-level h1.
  */
-import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Plus,
   Pencil,
@@ -65,6 +65,41 @@ function getVisiblePages(current, total) {
     if (i > 0 && sorted[i] - sorted[i - 1] > 1) result.push('...');
     result.push(sorted[i]);
   }
+  return result;
+}
+
+/**
+ * Parses a single CSV line respecting double-quoted fields.
+ * Handles: commas inside quotes, escaped quotes ("").
+ */
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        // Escaped quote inside quoted field
+        current += '"';
+        i++;
+      } else {
+        // Toggle quoted mode
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      // Field separator — only when not inside quotes
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  // Push the last field
+  result.push(current.trim());
   return result;
 }
 
@@ -319,16 +354,9 @@ function ParentModal({ modal, onClose }) {
   const [linking, setLinking] = useState(false);
   const [unlinkingId, setUnlinkingId] = useState(null);
 
-  // Fetch student detail (with parents) when modal opens
-  useEffect(() => {
-    if (!modal.open || !modal.studentId) return;
-    fetchParents();
-    setParentIdInput('');
-    setLinkError(null);
-  }, [modal.open, modal.studentId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  /** Fetches the student and extracts parents array. */
-  async function fetchParents() {
+  // Fetch parents for the current student — wrapped in useCallback
+  // for stable reference in useEffect dependency array
+  const fetchParents = useCallback(async () => {
     setIsLoadingParents(true);
     try {
       const data = await getStudent(modal.studentId);
@@ -338,7 +366,15 @@ function ParentModal({ modal, onClose }) {
     } finally {
       setIsLoadingParents(false);
     }
-  }
+  }, [modal.studentId]);
+
+  // Fetch student detail (with parents) when modal opens
+  useEffect(() => {
+    if (!modal.open || !modal.studentId) return;
+    fetchParents();
+    setParentIdInput('');
+    setLinkError(null);
+  }, [modal.open, modal.studentId, fetchParents]);
 
   /** Links a parent by UUID. */
   async function handleLink(e) {
@@ -552,8 +588,9 @@ function ImportModal({ modal, onClose, onDone }) {
             setParseError('File must have a header row and at least one data row.');
             return;
           }
-          headerRow = lines[0].split(',');
-          dataRows = lines.slice(1).map((l) => l.split(','));
+          // Use quoted-field-aware parser — naive split breaks on "Smith, John"
+          headerRow = parseCSVLine(lines[0]);
+          dataRows = lines.slice(1).map((l) => parseCSVLine(l));
         }
 
         // Map headers
@@ -894,10 +931,18 @@ export default function StudentsPage() {
   const [students, setStudents] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  // True during background refetches (after mutations) — not initial load
+  const [isRefetching, setIsRefetching] = useState(false);
   const [error, setError] = useState(null);
   const [inputValue, setInputValue] = useState('');
   const [apiSearch, setApiSearch] = useState('');
+  // Display value for class filter input (immediate)
+  const [classInputValue, setClassInputValue] = useState('');
+  // Debounced value used in fetch
   const [classFilter, setClassFilter] = useState('');
+  // Display value for section filter input (immediate)
+  const [sectionInputValue, setSectionInputValue] = useState('');
+  // Debounced value used in fetch
   const [sectionFilter, setSectionFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
   const [currentPage, setCurrentPage] = useState(1);
@@ -911,15 +956,16 @@ export default function StudentsPage() {
   // ── Refs ─────────────────────────────────────────────
   const hasFetchedRef = useRef(false);
   const debounceRef = useRef(null);
+  const classDebounceRef = useRef(null);
+  const sectionDebounceRef = useRef(null);
   const tableTopRef = useRef(null);
 
-  // Cancel pending debounce timer on unmount
+  // Cancel all pending debounce timers on unmount
   useEffect(() => {
     return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-        debounceRef.current = null;
-      }
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (classDebounceRef.current) clearTimeout(classDebounceRef.current);
+      if (sectionDebounceRef.current) clearTimeout(sectionDebounceRef.current);
     };
   }, []);
 
@@ -932,7 +978,12 @@ export default function StudentsPage() {
 
   /** Fetches the student list for the current filters. */
   const fetchStudents = useCallback(async (page, search, classF, sectionF, status) => {
-    if (!hasFetchedRef.current) setIsLoading(true);
+    if (!hasFetchedRef.current) {
+      setIsLoading(true);
+    } else {
+      // Show refetch indicator for subsequent fetches
+      setIsRefetching(true);
+    }
     setError(null);
 
     try {
@@ -948,6 +999,7 @@ export default function StudentsPage() {
       setError(err.response?.data?.message || 'Failed to load students');
     } finally {
       setIsLoading(false);
+      setIsRefetching(false);
     }
   }, []);
 
@@ -973,16 +1025,26 @@ export default function StudentsPage() {
     setCurrentPage(1);
   }
 
-  /** Class filter change — reset page. */
+  // Debounced class filter — updates display immediately, fetch after delay
   function handleClassFilter(value) {
-    setClassFilter(value);
-    setCurrentPage(1);
+    setClassInputValue(value);
+    if (classDebounceRef.current) clearTimeout(classDebounceRef.current);
+    classDebounceRef.current = setTimeout(() => {
+      setClassFilter(value);
+      setCurrentPage(1);
+      classDebounceRef.current = null;
+    }, DEBOUNCE_MS);
   }
 
-  /** Section filter change — reset page. */
+  // Debounced section filter — updates display immediately, fetch after delay
   function handleSectionFilter(value) {
-    setSectionFilter(value);
-    setCurrentPage(1);
+    setSectionInputValue(value);
+    if (sectionDebounceRef.current) clearTimeout(sectionDebounceRef.current);
+    sectionDebounceRef.current = setTimeout(() => {
+      setSectionFilter(value);
+      setCurrentPage(1);
+      sectionDebounceRef.current = null;
+    }, DEBOUNCE_MS);
   }
 
   /** Refetch current page (for post-mutation refreshes). */
@@ -1096,6 +1158,14 @@ export default function StudentsPage() {
         </div>
       </div>
 
+      {isRefetching && (
+        // Subtle refetch indicator — shown during background reloads
+        <div className="mb-3 flex items-center gap-2 text-xs text-slate-500">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Refreshing...
+        </div>
+      )}
+
       {/* ── Search + filter row ────────────────────────── */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         {/* Search input */}
@@ -1123,7 +1193,7 @@ export default function StudentsPage() {
         {/* Class filter */}
         <input
           type="text"
-          value={classFilter}
+          value={classInputValue}
           onChange={(e) => handleClassFilter(e.target.value)}
           placeholder="Class"
           className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300"
@@ -1132,7 +1202,7 @@ export default function StudentsPage() {
         {/* Section filter */}
         <input
           type="text"
-          value={sectionFilter}
+          value={sectionInputValue}
           onChange={(e) => handleSectionFilter(e.target.value)}
           placeholder="Section"
           className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300"
