@@ -68,6 +68,34 @@ function fmtTime(time) {
   return time.slice(0, 5);
 }
 
+// Returns a condensed page list with '...' for gaps between non-adjacent ranges
+function getVisiblePages(current, total) {
+  if (total <= 7) {
+    // Show all pages if 7 or fewer — no truncation needed
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  const pages = new Set();
+  // Always include first and last
+  pages.add(1);
+  pages.add(total);
+  // Include window around current page
+  for (let i = Math.max(2, current - 2); i <= Math.min(total - 1, current + 2); i++) {
+    pages.add(i);
+  }
+
+  // Convert to sorted array and insert '...' for gaps
+  const sorted = [...pages].sort((a, b) => a - b);
+  const result = [];
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0 && sorted[i] - sorted[i - 1] > 1) {
+      result.push('...');
+    }
+    result.push(sorted[i]);
+  }
+  return result;
+}
+
 /* ──────────────────────────────────────────────────────────
  * Modal components
  * ────────────────────────────────────────────────────────── */
@@ -77,6 +105,8 @@ function fmtTime(time) {
  * Closes on Escape and backdrop click. Traps conceptual focus.
  */
 function Modal({ open, onClose, title, children }) {
+  const dialogRef = useRef(null);
+
   // Close on Escape key
   useEffect(() => {
     if (!open) return;
@@ -86,6 +116,44 @@ function Modal({ open, onClose, title, children }) {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
+
+  // Save previously focused element and move focus into the modal
+  // Constrain Tab key to focusable elements within the dialog
+  // Restore focus to previously focused element on close
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement;
+    const focusable = dialogRef.current?.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable?.length) focusable[0].focus();
+    else dialogRef.current?.focus();
+
+    function handleTab(e) {
+      if (e.key !== 'Tab') return;
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        // Shift+Tab: if focus is on first, wrap to last
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        // Tab: if focus is on last, wrap to first
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+    document.addEventListener('keydown', handleTab);
+    return () => {
+      document.removeEventListener('keydown', handleTab);
+      if (previouslyFocused?.focus) previouslyFocused.focus();
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -99,9 +167,11 @@ function Modal({ open, onClose, title, children }) {
       />
       {/* Card */}
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        tabIndex={-1}
         className="relative z-10 w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl"
       >
         {/* Header */}
@@ -652,6 +722,7 @@ function RoutePanel({
   onDeleteStop,
   onMoveStop,
   colSpan,
+  reorderError,
 }) {
   // Loading state
   if (isRouteLoading) {
@@ -820,6 +891,10 @@ function RoutePanel({
             </table>
           </div>
         )}
+        {/* Inline reorder error — shown temporarily when sequence swap fails */}
+        {reorderError && (
+          <p className="mt-2 text-xs text-red-600">{reorderError}</p>
+        )}
       </td>
     </tr>
   );
@@ -851,10 +926,23 @@ export default function BusesPage() {
   const [stopModal, setStopModal] = useState({ open: false, mode: 'add', busId: null, stop: null });
   const [confirmModal, setConfirmModal] = useState({ open: false, action: null, busId: null, stopId: null, label: '' });
 
+  // Map of busId → reorder error string | null — auto-clears after 4s
+  const [reorderError, setReorderError] = useState({});
+
   // ── Refs ─────────────────────────────────────────────
   const hasFetchedRef = useRef(false);
   const debounceRef = useRef(null);
   const tableTopRef = useRef(null);
+
+  // Cancel any pending debounce timer when the component unmounts
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+    };
+  }, []);
 
   // ── Table column count for colSpan ───────────────────
   const COL_COUNT = 8;
@@ -1078,8 +1166,13 @@ export default function BusesPage() {
     try {
       await reorderStops(busId, updated);
       refreshRoute(busId);
-    } catch (_) {
-      // Silently fail — user can retry
+    } catch (err) {
+      // Show reorder failure inline in the route panel — auto-clears after 4s
+      const msg = err.response?.data?.message || 'Failed to reorder stops';
+      setReorderError((prev) => ({ ...prev, [busId]: msg }));
+      setTimeout(() => {
+        setReorderError((prev) => ({ ...prev, [busId]: null }));
+      }, 4000);
     }
   }
 
@@ -1350,6 +1443,7 @@ export default function BusesPage() {
                         onDeleteStop={openDeleteStop}
                         onMoveStop={handleMoveStop}
                         colSpan={COL_COUNT}
+                        reorderError={reorderError[bus.id] || null}
                       />
                     )}
                   </Fragment>
@@ -1373,22 +1467,31 @@ export default function BusesPage() {
           </button>
 
           {/* Page numbers */}
-          {Array.from({ length: pagination.total_pages }, (_, i) => i + 1).map(
-            (page) => (
-              <button
-                key={page}
-                type="button"
-                onClick={() => goToPage(page)}
-                className={cn(
-                  'rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-300',
-                  page === currentPage
-                    ? 'bg-slate-800 text-white'
-                    : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
-                )}
-              >
-                {page}
-              </button>
-            )
+          {getVisiblePages(currentPage, pagination.total_pages).map(
+            (item, idx) =>
+              item === '...' ? (
+                // Non-clickable ellipsis separator
+                <span
+                  key={`ellipsis-${idx}`}
+                  className="px-2 py-1.5 text-sm text-slate-400 select-none"
+                >
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => goToPage(item)}
+                  className={cn(
+                    'rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-300',
+                    item === currentPage
+                      ? 'bg-slate-800 text-white'
+                      : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
+                  )}
+                >
+                  {item}
+                </button>
+              )
           )}
 
           {/* Next */}
