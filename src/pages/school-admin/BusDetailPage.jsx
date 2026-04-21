@@ -103,9 +103,12 @@ function selectActiveJourney(pickup, drop) {
   if (pickup?.status === 'PICKUP_STARTED') return pickup;
   if (drop?.status === 'DROP_STARTED') return drop;
 
-  // Fallback to completed/arrived journeys
-  if (pickup?.status === 'COMPLETED' || pickup?.status === 'ARRIVED_SCHOOL') return pickup;
+  // Prefer the more recent completed journey (drop happens after pickup)
   if (drop?.status === 'COMPLETED') return drop;
+  if (
+    pickup?.status === 'COMPLETED' ||
+    pickup?.status === 'ARRIVED_SCHOOL'
+  ) return pickup;
 
   return null;
 }
@@ -123,7 +126,12 @@ function InfoStat({ label, value, icon: Icon }) {
       {Icon && <Icon className="h-4 w-4 text-slate-400" />}
       <div>
         <p className="text-xs text-slate-500">{label}</p>
-        <p className="text-sm font-medium text-slate-800">{value || '—'}</p>
+        {/* Only treat null, undefined, or empty string as missing — not 0 */}
+        <p className="text-sm font-medium text-slate-800">
+          {value === null || value === undefined || value === ''
+            ? '—'
+            : value}
+        </p>
       </div>
     </div>
   );
@@ -259,6 +267,10 @@ export default function BusDetailPage() {
     const controller = new AbortController();
 
     async function fetchData() {
+      // Clear stale data so previous bus detail cannot flash under
+      // a new busId if the fetch is slow or fails
+      setBus(null);
+      setLocationLog(null);
       setIsLoading(true);
       setError(null);
 
@@ -278,19 +290,35 @@ export default function BusDetailPage() {
           try {
             const logData = await getJourneyLocationLog(activeJourney.journey_id, controller.signal);
             setLocationLog(logData);
-          } catch (_) {
+          } catch (logErr) {
+            // Rethrow abort errors — let the outer catch handle unmount cleanup
+            if (
+              logErr.name === 'CanceledError' ||
+              logErr.name === 'AbortError'
+            ) throw logErr;
             // Location log fetch failure is non-critical — page still renders
             setLocationLog(null);
           }
+        } else {
+          // No active journey — explicitly clear any stale log
+          setLocationLog(null);
         }
       } catch (err) {
         // Ignore abort errors — component unmounted before fetch completed
         if (err.name === 'CanceledError' || err.name === 'AbortError') return;
+        // Reset stale data on fetch failure
+        setBus(null);
+        setLocationLog(null);
         const message =
           err.response?.data?.message || 'Failed to load bus details';
         setError(message);
       } finally {
-        setIsLoading(false);
+        // Skip loading state update if the request was aborted —
+        // the component is unmounted and setIsLoading would be a no-op
+        // or could interfere with the next screen's loading state
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     }
 
