@@ -132,8 +132,9 @@ function BusModal({ modal, onClose, onSuccess }) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState(null);
 
-  // Populate fields when opening in edit mode
+  // Re-initialise form fields whenever the modal opens or its data changes
   useEffect(() => {
+    if (!modal.open) return;
     if (isEdit && modal.bus) {
       setBusNumber(modal.bus.bus_number || '');
       setCapacity(modal.bus.capacity?.toString() || '');
@@ -142,7 +143,7 @@ function BusModal({ modal, onClose, onSuccess }) {
       setCapacity('');
     }
     setFormError(null);
-  }, [isEdit, modal.bus]);
+  }, [isEdit, modal.bus, modal.open]);
 
   /** Validates and submits the bus form. */
   async function handleSubmit(e) {
@@ -255,17 +256,19 @@ function RouteModal({ modal, onClose, onSuccess }) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState(null);
 
-  // Populate fields when editing
+  // Re-initialise form fields whenever the modal opens or its data changes
   useEffect(() => {
+    if (!modal.open) return;
     if (isEdit && modal.route) {
       setRouteName(modal.route.route_name || '');
-      setDeparture(modal.route.scheduled_departure || '');
+      // Normalise HH:MM:SS → HH:MM so the field passes validation unchanged
+      setDeparture(fmtTime(modal.route.scheduled_departure) || '');
     } else {
       setRouteName('');
       setDeparture('');
     }
     setFormError(null);
-  }, [isEdit, modal.route]);
+  }, [isEdit, modal.route, modal.open]);
 
   /** Validates and submits the route form. */
   async function handleSubmit(e) {
@@ -396,8 +399,9 @@ function StopModal({ modal, onClose, onSuccess }) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState(null);
 
-  // Populate fields when editing
+  // Re-initialise form fields whenever the modal opens or its data changes
   useEffect(() => {
+    if (!modal.open) return;
     if (isEdit && modal.stop) {
       setStopName(modal.stop.stop_name || '');
       setSequence(modal.stop.stop_sequence?.toString() || '');
@@ -410,7 +414,7 @@ function StopModal({ modal, onClose, onSuccess }) {
       setLng('');
     }
     setFormError(null);
-  }, [isEdit, modal.stop]);
+  }, [isEdit, modal.stop, modal.open]);
 
   /** Validates and submits the stop form. */
   async function handleSubmit(e) {
@@ -896,10 +900,15 @@ export default function BusesPage() {
     }, DEBOUNCE_MS);
   }
 
-  /** Status filter change — resets to page 1 and fetches immediately. */
+  // Cancel any pending debounced search before switching filters
   function handleStatusFilter(status) {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
     setStatusFilter(status);
     setCurrentPage(1);
+    fetchBuses(1, search, status);
   }
 
   /** Refetch current page (for retry / after mutations). */
