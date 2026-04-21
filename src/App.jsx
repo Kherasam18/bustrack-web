@@ -1,4 +1,10 @@
-// src/App.jsx — Root application component with React Router v6 role-based routing
+/**
+ * App.jsx
+ * Root application component with React Router v6 role-based routing.
+ * Public routes are at the top level. Authenticated routes are nested inside
+ * ProtectedRoute (role gate) → AppShell (layout wrapper) for a consistent
+ * sidebar + topbar shell across all dashboard pages.
+ */
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import useAuthStore from './store/authStore';
 import { ROLES, getDefaultRoute, hasRole } from './utils/roles';
@@ -16,6 +22,8 @@ import BusDetailPage from './pages/school-admin/BusDetailPage';
 import StudentsPage from './pages/school-admin/StudentsPage';
 import DriversPage from './pages/school-admin/DriversPage';
 import NotificationsPage from './pages/school-admin/NotificationsPage';
+
+import AppShell from './components/layout/AppShell';
 
 /**
  * ProtectedRoute — guards child routes behind authentication and role checks.
@@ -58,20 +66,24 @@ export default function App() {
         <Route path="/verify-otp" element={<VerifyOTPPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-        {/* Super Admin routes */}
+        {/* Super Admin routes — wrapped in AppShell layout */}
         <Route element={<ProtectedRoute requiredRole={ROLES.SUPER_ADMIN} />}>
-          <Route path="/super-admin/schools" element={<SchoolsPage />} />
-          <Route path="/super-admin/schools/:id" element={<SchoolDetailPage />} />
+          <Route element={<AppShell />}>
+            <Route path="/super-admin/schools" element={<SchoolsPage />} />
+            <Route path="/super-admin/schools/:id" element={<SchoolDetailPage />} />
+          </Route>
         </Route>
 
-        {/* School Admin routes */}
+        {/* School Admin routes — wrapped in AppShell layout */}
         <Route element={<ProtectedRoute requiredRole={ROLES.SCHOOL_ADMIN} />}>
-          <Route path="/school-admin/dashboard" element={<DashboardPage />} />
-          <Route path="/school-admin/buses" element={<BusesPage />} />
-          <Route path="/school-admin/buses/:id" element={<BusDetailPage />} />
-          <Route path="/school-admin/students" element={<StudentsPage />} />
-          <Route path="/school-admin/drivers" element={<DriversPage />} />
-          <Route path="/school-admin/notifications" element={<NotificationsPage />} />
+          <Route element={<AppShell />}>
+            <Route path="/school-admin/dashboard" element={<DashboardPage />} />
+            <Route path="/school-admin/buses" element={<BusesPage />} />
+            <Route path="/school-admin/buses/:id" element={<BusDetailPage />} />
+            <Route path="/school-admin/students" element={<StudentsPage />} />
+            <Route path="/school-admin/drivers" element={<DriversPage />} />
+            <Route path="/school-admin/notifications" element={<NotificationsPage />} />
+          </Route>
         </Route>
 
         {/* Root redirect */}
