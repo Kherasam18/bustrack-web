@@ -110,18 +110,19 @@ function getVisiblePages(current, total) {
  * Reusable modal shell — renders a backdrop + centred card.
  * Closes on Escape and backdrop click. Traps conceptual focus.
  */
-function Modal({ open, onClose, title, children }) {
+function Modal({ open, onClose, title, wide, disableClose = false, children }) {
   const dialogRef = useRef(null);
 
   // Close on Escape key
   useEffect(() => {
     if (!open) return;
     function onKey(e) {
-      if (e.key === 'Escape') onClose();
+      // Prevent closing while a mutation is in flight
+      if (e.key === 'Escape' && !disableClose) onClose();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open, onClose, disableClose]);
 
   // Save previously focused element and move focus into the modal
   // Constrain Tab key to focusable elements within the dialog
@@ -168,7 +169,7 @@ function Modal({ open, onClose, title, children }) {
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50"
-        onClick={onClose}
+        onClick={disableClose ? undefined : onClose}
         aria-hidden="true"
       />
       {/* Card */}
@@ -186,7 +187,8 @@ function Modal({ open, onClose, title, children }) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"
+            disabled={disableClose}
+            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-40 disabled:cursor-not-allowed"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
@@ -923,18 +925,17 @@ function RoutePanel({
           <p className="text-sm font-medium text-slate-700">
             Assigned Students ({assignedStudents.length})
           </p>
-          {route ? (
-            <button
-              type="button"
-              onClick={() => onAssignStudent(busId)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500"
-            >
-              <UserPlus className="h-3.5 w-3.5" />
-              Assign Student
-            </button>
-          ) : (
-            <p className="text-xs text-slate-400 italic">Create a route first to assign students.</p>
-          )}
+          {/* Route is guaranteed truthy here — RoutePanel returns early when
+              route is null, so this button is always reachable */}
+          <button
+            type="button"
+            onClick={() => onAssignStudent(busId)}
+            aria-label="Assign student to bus"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500"
+          >
+            <UserPlus className="h-3.5 w-3.5" />
+            Assign Student
+          </button>
         </div>
 
         {/* Students loading skeleton */}
@@ -1017,11 +1018,15 @@ function AssignStudentModal({ modal, onClose, onSuccess }) {
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState(null);
   const searchDebounceRef = useRef(null);
+  // Tracks the AbortController for the active search request
+  const abortControllerRef = useRef(null);
 
   // Clean up debounce timer on unmount
   useEffect(() => {
     return () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      // Abort any in-flight search request on unmount
+      if (abortControllerRef.current) abortControllerRef.current.abort();
     };
   }, []);
 
@@ -1043,6 +1048,8 @@ function AssignStudentModal({ modal, onClose, onSuccess }) {
     setSearchInput(value);
     setAssignError(null);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    // Cancel any in-flight search request before starting a new one
+    if (abortControllerRef.current) abortControllerRef.current.abort();
 
     if (!value.trim()) {
       setSearchResults([]);
@@ -1053,15 +1060,19 @@ function AssignStudentModal({ modal, onClose, onSuccess }) {
     searchDebounceRef.current = setTimeout(async () => {
       setIsSearching(true);
       setSearchError(null);
+      // Create new AbortController for this request
+      abortControllerRef.current = new AbortController();
       try {
         const data = await listStudents({
           search: value.trim(),
           status: 'active',
           limit: 10,
           page: 1,
-        });
+        }, abortControllerRef.current.signal);
         setSearchResults(data.students || []);
       } catch (err) {
+        // Ignore abort errors — request was superseded by a newer search
+        if (err.name === 'AbortError' || err.name === 'CanceledError') return;
         setSearchError(err.response?.data?.message || 'Search failed');
       } finally {
         setIsSearching(false);
