@@ -1030,9 +1030,22 @@ function AssignStudentModal({ modal, onClose, onSuccess }) {
     };
   }, []);
 
-  // Reset form state when modal opens/closes
+  // Re-initialise form state when modal opens or closes
   useEffect(() => {
-    if (!modal.open) return;
+    if (!modal.open) {
+      // Modal closed — cancel any pending search timer and in-flight
+      // request to prevent stale state updates while hidden
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = null;
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      return;
+    }
+    // Modal opened — reset all form state
     setSearchInput('');
     setSearchResults([]);
     setIsSearching(false);
@@ -1555,9 +1568,16 @@ export default function BusesPage() {
       refetch();
     } else if (action === 'deleteStop') {
       await deleteStopApi(busId, stopId);
+      // Refresh both caches — stop deletion affects route stops and
+      // any students assigned to the deleted stop
       refreshRoute(busId);
+      refreshStudents(busId);
+      refetch();
     } else if (action === 'unassignStudent') {
       await unassignStudent(busId, studentId);
+      // Refresh both caches — unassignment affects student list and
+      // route stop student counts
+      refreshRoute(busId);
       refreshStudents(busId);
       refetch();
     }
@@ -1615,8 +1635,10 @@ export default function BusesPage() {
     refetch();
   }
 
-  /** Called after a student is assigned — refresh students and bus list. */
+  // Refresh both caches after assignment — stop student counts and
+  // assigned student list both change
   function onAssignSuccess(busId) {
+    refreshRoute(busId);
     refreshStudents(busId);
     refetch();
   }
