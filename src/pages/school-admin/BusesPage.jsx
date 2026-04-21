@@ -25,6 +25,8 @@ import {
   ArrowUp,
   ArrowDown,
   Loader2,
+  UserPlus,
+  UserMinus,
 } from 'lucide-react';
 import {
   listBuses,
@@ -39,7 +41,11 @@ import {
   updateStop as updateStopApi,
   deleteStop as deleteStopApi,
   reorderStops,
+  listBusStudents,
+  assignStudent,
+  unassignStudent,
 } from '../../api/buses.api';
+import { listStudents } from '../../api/students.api';
 import { cn } from '../../lib/utils';
 
 /* ──────────────────────────────────────────────────────────
@@ -662,7 +668,7 @@ function ConfirmModal({ modal, onClose, onConfirm }) {
     setConfirming(true);
     setConfirmError(null);
     try {
-      await onConfirm(modal.action, modal.busId, modal.stopId);
+      await onConfirm(modal.action, modal.busId, modal.stopId, modal.studentId);
       onClose();
     } catch (err) {
       setConfirmError(err.response?.data?.message || 'Action failed');
@@ -676,6 +682,7 @@ function ConfirmModal({ modal, onClose, onConfirm }) {
     deactivate: 'Confirm Deactivate',
     reactivate: 'Confirm Reactivate',
     deleteStop: 'Delete Stop',
+    unassignStudent: 'Unassign Student',
   };
 
   return (
@@ -731,6 +738,11 @@ function RoutePanel({
   onMoveStop,
   colSpan,
   reorderError,
+  assignedStudents,
+  isStudentsLoading,
+  studentsError,
+  onAssignStudent,
+  onUnassignStudent,
 }) {
   // Loading state
   if (isRouteLoading) {
@@ -903,8 +915,316 @@ function RoutePanel({
         {reorderError && (
           <p className="mt-2 text-xs text-red-600">{reorderError}</p>
         )}
+
+        {/* ── Assigned Students sub-section ─────────────── */}
+        <hr className="my-4 border-slate-200" />
+
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-medium text-slate-700">
+            Assigned Students ({assignedStudents.length})
+          </p>
+          {route ? (
+            <button
+              type="button"
+              onClick={() => onAssignStudent(busId)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              Assign Student
+            </button>
+          ) : (
+            <p className="text-xs text-slate-400 italic">Create a route first to assign students.</p>
+          )}
+        </div>
+
+        {/* Students loading skeleton */}
+        {isStudentsLoading && (
+          <div className="space-y-2">
+            <div className="h-4 w-48 animate-pulse rounded bg-slate-200" />
+            <div className="h-4 w-36 animate-pulse rounded bg-slate-200" />
+          </div>
+        )}
+
+        {/* Students error */}
+        {!isStudentsLoading && studentsError && (
+          <p className="text-sm text-red-600">{studentsError}</p>
+        )}
+
+        {/* Students empty state */}
+        {!isStudentsLoading && !studentsError && assignedStudents.length === 0 && (
+          <p className="text-sm text-slate-400">No students assigned to this bus.</p>
+        )}
+
+        {/* Students table */}
+        {!isStudentsLoading && !studentsError && assignedStudents.length > 0 && (
+          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-left text-slate-600">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Name</th>
+                  <th className="px-3 py-2 font-medium">Roll No</th>
+                  <th className="px-3 py-2 font-medium">Class</th>
+                  <th className="px-3 py-2 font-medium">Stop</th>
+                  <th className="px-3 py-2 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {assignedStudents.map((s) => (
+                  <tr key={s.id} className="hover:bg-slate-50">
+                    <td className="px-3 py-2 text-slate-800">{s.name}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-slate-600">{s.roll_no}</td>
+                    <td className="px-3 py-2 text-slate-600">
+                      {s.class}{s.section ? ` ${s.section}` : ''}
+                    </td>
+                    <td className="px-3 py-2 text-slate-600">
+                      {s.stop_name || '—'}
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => onUnassignStudent(busId, s.id, s.name)}
+                          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-400 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-300"
+                          aria-label={`Unassign ${s.name}`}
+                        >
+                          <UserMinus className="h-3.5 w-3.5" />
+                          Unassign
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </td>
     </tr>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────
+ * Assign Student modal — search, select, optional stop pick
+ * ────────────────────────────────────────────────────────── */
+
+function AssignStudentModal({ modal, onClose, onSuccess }) {
+  const [searchInput, setSearchInput] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState(null);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [selectedStopId, setSelectedStopId] = useState('');
+  const [assigning, setAssigning] = useState(false);
+  const [assignError, setAssignError] = useState(null);
+  const searchDebounceRef = useRef(null);
+
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, []);
+
+  // Reset form state when modal opens/closes
+  useEffect(() => {
+    if (!modal.open) return;
+    setSearchInput('');
+    setSearchResults([]);
+    setIsSearching(false);
+    setSearchError(null);
+    setSelectedStudent(null);
+    setSelectedStopId('');
+    setAssigning(false);
+    setAssignError(null);
+  }, [modal.open]);
+
+  // Debounced student search
+  function handleSearch(value) {
+    setSearchInput(value);
+    setAssignError(null);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
+    if (!value.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    searchDebounceRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      setSearchError(null);
+      try {
+        const data = await listStudents({
+          search: value.trim(),
+          status: 'active',
+          limit: 10,
+          page: 1,
+        });
+        setSearchResults(data.students || []);
+      } catch (err) {
+        setSearchError(err.response?.data?.message || 'Search failed');
+      } finally {
+        setIsSearching(false);
+      }
+    }, DEBOUNCE_MS);
+  }
+
+  // Select a student from search results
+  function selectStudent(student) {
+    setSelectedStudent(student);
+    setSearchInput(student.name);
+    setSearchResults([]);
+    setAssignError(null);
+  }
+
+  // Submit assignment
+  async function handleAssign() {
+    if (!selectedStudent) return;
+    setAssigning(true);
+    setAssignError(null);
+    try {
+      const payload = { student_id: selectedStudent.id };
+      if (selectedStopId) payload.stop_id = selectedStopId;
+      await assignStudent(modal.busId, payload);
+      onSuccess(modal.busId);
+      onClose();
+    } catch (err) {
+      setAssignError(err.response?.data?.message || 'Assignment failed');
+    } finally {
+      setAssigning(false);
+    }
+  }
+
+  // Route stops for optional stop picker
+  const stops = modal.route?.stops || [];
+  const sortedStops = [...stops].sort((a, b) => a.stop_sequence - b.stop_sequence);
+
+  return (
+    <Modal open={modal.open} onClose={onClose} title="Assign Student" disableClose={assigning}>
+      <div className="space-y-4">
+        {/* Student search */}
+        <div>
+          <label htmlFor="assign-student-search" className="mb-1 block text-sm font-medium text-slate-700">
+            Search Student <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <input
+              id="assign-student-search"
+              type="text"
+              value={searchInput}
+              onChange={(e) => handleSearch(e.target.value)}
+              disabled={assigning}
+              placeholder="Type a name or roll number..."
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50"
+              autoComplete="off"
+            />
+            {/* Search results dropdown */}
+            {(searchResults.length > 0 || isSearching) && (
+              <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                {isSearching && (
+                  <div className="flex items-center gap-2 px-3 py-2 text-sm text-slate-400">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
+                  </div>
+                )}
+                {!isSearching && searchResults.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => selectStudent(s)}
+                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+                  >
+                    <div>
+                      <span className="font-medium text-slate-800">{s.name}</span>
+                      <span className="ml-2 font-mono text-xs text-slate-500">{s.roll_no}</span>
+                      <span className="ml-2 text-xs text-slate-400">
+                        {s.class}{s.section ? ` ${s.section}` : ''}
+                      </span>
+                    </div>
+                    {s.bus_number && (
+                      <span className="text-xs text-amber-600">(Assigned to {s.bus_number})</span>
+                    )}
+                  </button>
+                ))}
+                {!isSearching && searchResults.length === 0 && searchInput.trim() && (
+                  <p className="px-3 py-2 text-sm text-slate-400">No students found.</p>
+                )}
+              </div>
+            )}
+          </div>
+          {searchError && <p className="mt-1 text-xs text-red-600">{searchError}</p>}
+        </div>
+
+        {/* Selected student indicator */}
+        {selectedStudent && (
+          <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-slate-800">{selectedStudent.name}</p>
+              <p className="text-xs text-slate-500">
+                {selectedStudent.roll_no} · {selectedStudent.class}{selectedStudent.section ? ` ${selectedStudent.section}` : ''}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setSelectedStudent(null); setSearchInput(''); }}
+              className="rounded p-1 text-slate-400 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"
+              aria-label="Clear selection"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Optional stop selector */}
+        {modal.route && sortedStops.length > 0 && (
+          <div>
+            <label htmlFor="assign-stop-select" className="mb-1 block text-sm font-medium text-slate-700">
+              Assign to Stop (optional)
+            </label>
+            <select
+              id="assign-stop-select"
+              value={selectedStopId}
+              onChange={(e) => setSelectedStopId(e.target.value)}
+              disabled={assigning}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50"
+            >
+              <option value="">— No specific stop —</option>
+              {sortedStops.map((stop) => (
+                <option key={stop.id} value={stop.id}>
+                  {stop.stop_sequence}. {stop.stop_name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-slate-400">
+              Leaving this blank assigns the student to the bus without a specific stop.
+            </p>
+          </div>
+        )}
+
+        {/* Error display */}
+        {assignError && <p className="text-sm text-red-600">{assignError}</p>}
+
+        {/* Actions */}
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={assigning}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleAssign}
+            disabled={!selectedStudent || assigning}
+            className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50"
+          >
+            {assigning && <Loader2 className="h-4 w-4 animate-spin" />}
+            Assign Student
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -928,11 +1248,17 @@ export default function BusesPage() {
   const [busRouteLoading, setBusRouteLoading] = useState({});
   const [busRouteError, setBusRouteError] = useState({});
 
+  // ── Assigned students cache ──────────────────────────
+  const [busStudents, setBusStudents] = useState({});
+  const [busStudentsLoading, setBusStudentsLoading] = useState({});
+  const [busStudentsError, setBusStudentsError] = useState({});
+
   // ── Modal state ──────────────────────────────────────
   const [busModal, setBusModal] = useState({ open: false, mode: 'add', bus: null });
   const [routeModal, setRouteModal] = useState({ open: false, mode: 'create', busId: null, route: null });
   const [stopModal, setStopModal] = useState({ open: false, mode: 'add', busId: null, stop: null });
-  const [confirmModal, setConfirmModal] = useState({ open: false, action: null, busId: null, stopId: null, label: '' });
+  const [confirmModal, setConfirmModal] = useState({ open: false, action: null, busId: null, stopId: null, studentId: null, studentName: '', label: '' });
+  const [assignModal, setAssignModal] = useState({ open: false, busId: null, route: null });
 
   // Map of busId → reorder error string | null — auto-clears after 4s
   const [reorderError, setReorderError] = useState({});
@@ -1042,6 +1368,10 @@ export default function BusesPage() {
     if (busRoute[busId] === undefined && !busRouteLoading[busId]) {
       fetchRouteForBus(busId);
     }
+    // Fetch students if not yet cached
+    if (busStudents[busId] === undefined && !busStudentsLoading[busId]) {
+      fetchStudentsForBus(busId);
+    }
   }
 
   /** Fetches route data for a single bus and caches it. */
@@ -1078,6 +1408,33 @@ export default function BusesPage() {
     fetchRouteForBus(busId);
   }
 
+  /** Fetches assigned students for a bus and caches the result. */
+  async function fetchStudentsForBus(busId) {
+    setBusStudentsLoading((prev) => ({ ...prev, [busId]: true }));
+    setBusStudentsError((prev) => ({ ...prev, [busId]: null }));
+    try {
+      const data = await listBusStudents(busId);
+      setBusStudents((prev) => ({ ...prev, [busId]: data.students || [] }));
+    } catch (err) {
+      setBusStudentsError((prev) => ({
+        ...prev,
+        [busId]: err.response?.data?.message || 'Failed to load students',
+      }));
+    } finally {
+      setBusStudentsLoading((prev) => ({ ...prev, [busId]: false }));
+    }
+  }
+
+  /** Clears student cache and refetches for a bus. */
+  function refreshStudents(busId) {
+    setBusStudents((prev) => {
+      const next = { ...prev };
+      delete next[busId];
+      return next;
+    });
+    fetchStudentsForBus(busId);
+  }
+
   /* ────────────────────────────────────────────────────────
    * Modal openers
    * ──────────────────────────────────────────────────────── */
@@ -1096,6 +1453,8 @@ export default function BusesPage() {
       action: 'deactivate',
       busId,
       stopId: null,
+      studentId: null,
+      studentName: '',
       label: 'Deactivating this bus will remove all student assignments and deactivate its route. This cannot be undone automatically.',
     });
   }
@@ -1106,6 +1465,8 @@ export default function BusesPage() {
       action: 'reactivate',
       busId,
       stopId: null,
+      studentId: null,
+      studentName: '',
       label: 'This will reactivate the bus only. Student assignments and route must be reconfigured manually.',
     });
   }
@@ -1132,7 +1493,28 @@ export default function BusesPage() {
       action: 'deleteStop',
       busId,
       stopId,
+      studentId: null,
+      studentName: '',
       label: 'This will remove the stop and unassign any students linked to it.',
+    });
+  }
+
+  /** Opens the assign student modal for a bus. */
+  function openAssignStudent(busId) {
+    const route = busRoute[busId] || null;
+    setAssignModal({ open: true, busId, route });
+  }
+
+  /** Opens the confirm modal to unassign a student from a bus. */
+  function openUnassignStudent(busId, studentId, studentName) {
+    setConfirmModal({
+      open: true,
+      action: 'unassignStudent',
+      busId,
+      stopId: null,
+      studentId,
+      studentName,
+      label: `This will remove ${studentName} from this bus. Their stop assignment will also be cleared.`,
     });
   }
 
@@ -1141,11 +1523,17 @@ export default function BusesPage() {
    * ──────────────────────────────────────────────────────── */
 
   /** Executes the confirmed destructive action. */
-  async function handleConfirmAction(action, busId, stopId) {
+  async function handleConfirmAction(action, busId, stopId, studentId) {
     if (action === 'deactivate') {
       await deactivateBus(busId);
       // Clear cached route since it's now deactivated
       setBusRoute((prev) => {
+        const next = { ...prev };
+        delete next[busId];
+        return next;
+      });
+      // Clear cached students — deactivation removes all assignments
+      setBusStudents((prev) => {
         const next = { ...prev };
         delete next[busId];
         return next;
@@ -1157,6 +1545,10 @@ export default function BusesPage() {
     } else if (action === 'deleteStop') {
       await deleteStopApi(busId, stopId);
       refreshRoute(busId);
+    } else if (action === 'unassignStudent') {
+      await unassignStudent(busId, studentId);
+      refreshStudents(busId);
+      refetch();
     }
   }
 
@@ -1209,6 +1601,12 @@ export default function BusesPage() {
 
   /** Called after a bus is edited — refetch current page. */
   function onBusEditSuccess() {
+    refetch();
+  }
+
+  /** Called after a student is assigned — refresh students and bus list. */
+  function onAssignSuccess(busId) {
+    refreshStudents(busId);
     refetch();
   }
 
@@ -1465,6 +1863,11 @@ export default function BusesPage() {
                         onMoveStop={handleMoveStop}
                         colSpan={COL_COUNT}
                         reorderError={reorderError[bus.id] || null}
+                        assignedStudents={busStudents[bus.id] || []}
+                        isStudentsLoading={busStudentsLoading[bus.id] || false}
+                        studentsError={busStudentsError[bus.id] || null}
+                        onAssignStudent={openAssignStudent}
+                        onUnassignStudent={openUnassignStudent}
                       />
                     )}
                   </Fragment>
@@ -1550,6 +1953,12 @@ export default function BusesPage() {
         modal={confirmModal}
         onClose={() => setConfirmModal((m) => ({ ...m, open: false }))}
         onConfirm={handleConfirmAction}
+      />
+
+      <AssignStudentModal
+        modal={assignModal}
+        onClose={() => setAssignModal((m) => ({ ...m, open: false }))}
+        onSuccess={onAssignSuccess}
       />
     </div>
   );
