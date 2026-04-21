@@ -12,8 +12,11 @@ import api from './axios';
  * ────────────────────────────────────────────────────────── */
 
 /** Lists students with pagination, search, class/section/status filters. */
-export async function listStudents(params) {
-  const response = await api.get('/api/students', { params });
+export async function listStudents(params, signal) {
+  const response = await api.get('/api/students', {
+    params,
+    ...(signal ? { signal } : {}),
+  });
   return response.data.data;
 }
 

@@ -124,25 +124,37 @@ function Modal({ open, onClose, title, wide, children }) {
   useEffect(() => {
     if (!open) return;
     const previouslyFocused = document.activeElement;
-    const focusable = dialogRef.current?.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
+
+    // Re-query live focusable elements on each Tab press
+    function getFocusable() {
+      return dialogRef.current?.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+    }
+
+    // Set initial focus on the first focusable element
+    const focusable = getFocusable();
     if (focusable?.length) focusable[0].focus();
     else dialogRef.current?.focus();
 
     function handleTab(e) {
-      if (e.key !== 'Tab' || !focusable?.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
+      if (e.key !== 'Tab') return;
+      // Re-query every time so step changes don't cause stale references
+      const current = getFocusable();
+      if (!current?.length) return;
+      const first = current[0];
+      const last = current[current.length - 1];
       if (e.shiftKey) {
         if (document.activeElement === first) { e.preventDefault(); last.focus(); }
       } else {
         if (document.activeElement === last) { e.preventDefault(); first.focus(); }
       }
     }
+
     document.addEventListener('keydown', handleTab);
     return () => {
       document.removeEventListener('keydown', handleTab);
+      // Restore focus to previously focused element on close
       if (previouslyFocused?.focus) previouslyFocused.focus();
     };
   }, [open]);
@@ -353,18 +365,32 @@ function ParentModal({ modal, onClose }) {
   const [linkError, setLinkError] = useState(null);
   const [linking, setLinking] = useState(false);
   const [unlinkingId, setUnlinkingId] = useState(null);
+  const parentRequestRef = useRef(0);
 
   // Fetch parents for the current student — wrapped in useCallback
   // for stable reference in useEffect dependency array
   const fetchParents = useCallback(async () => {
+    if (!modal.studentId) return;
+    // Increment token — only the latest request should commit
+    const token = ++parentRequestRef.current;
     setIsLoadingParents(true);
+    setLinkError(null);
     try {
       const data = await getStudent(modal.studentId);
-      setParents(data.student?.parents || []);
-    } catch (_) {
-      setParents([]);
+      // Only commit if this is still the latest request
+      if (token === parentRequestRef.current) {
+        setParents(data.student?.parents || []);
+      }
+    } catch (err) {
+      // Only commit if this is still the latest request
+      if (token === parentRequestRef.current) {
+        setLinkError(err.response?.data?.message || 'Failed to load parents');
+      }
     } finally {
-      setIsLoadingParents(false);
+      // Only commit if this is still the latest request
+      if (token === parentRequestRef.current) {
+        setIsLoadingParents(false);
+      }
     }
   }, [modal.studentId]);
 
@@ -573,7 +599,9 @@ function ImportModal({ modal, onClose, onDone }) {
           const workbook = XLSX.read(data, { type: 'array' });
           const sheetName = workbook.SheetNames[0];
           const sheet = workbook.Sheets[sheetName];
-          const allRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+          // raw: false returns formatted cell text — preserves leading zeros
+          // e.g. "001" stays "001" instead of becoming 1
+          const allRows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
           if (allRows.length < 2) {
             setParseError('File must have a header row and at least one data row.');
             return;
@@ -627,23 +655,23 @@ function ImportModal({ modal, onClose, onDone }) {
     }
   }
 
-  /** Client-side validates parsed rows before import. */
-  function getPreviewValidationError() {
-    for (let i = 0; i < parsedRows.length; i++) {
-      const row = parsedRows[i];
+  // Validates all parsed rows — returns array of error strings (null for valid)
+  function computeRowValidationErrors(rows) {
+    return rows.map((row, idx) => {
       const missing = [];
-      if (!row.name) missing.push('name');
-      if (!row.roll_no) missing.push('roll_no');
-      if (!row.class) missing.push('class');
-      if (missing.length > 0) {
-        return `Row ${i + 1} is missing: ${missing.join(', ')}`;
-      }
-    }
-    return null;
+      if (!row.name?.trim()) missing.push('name');
+      if (!row.roll_no?.trim()) missing.push('roll number');
+      if (!row['class']?.trim()) missing.push('class');
+      if (missing.length === 0) return null;
+      return `Row ${idx + 1} is missing: ${missing.join(', ')}`;
+    });
   }
 
   /** Sends parsed rows to the bulk import endpoint. */
   async function handleImport() {
+    const rowErrors = computeRowValidationErrors(parsedRows);
+    const firstError = rowErrors.find((e) => e !== null);
+    if (firstError) { setImportError(firstError); return; }
     setImportError(null);
     setImporting(true);
     try {
@@ -680,7 +708,8 @@ function ImportModal({ modal, onClose, onDone }) {
     if (f) handleFileSelect(f);
   }
 
-  const previewError = step === 'preview' ? getPreviewValidationError() : null;
+  const rowErrors = step === 'preview' ? computeRowValidationErrors(parsedRows) : [];
+  const hasErrors = rowErrors.some((e) => e !== null);
 
   return (
     <Modal open={modal.open} onClose={onClose} title="Bulk Import Students" wide>
@@ -702,7 +731,17 @@ function ImportModal({ modal, onClose, onDone }) {
           </button>
 
           {/* Drop zone */}
+          {/* Make file drop zone keyboard-accessible */}
           <div
+            tabIndex={0}
+            role="button"
+            aria-label="Upload CSV or Excel file"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
             onDrop={onDrop}
@@ -717,9 +756,11 @@ function ImportModal({ modal, onClose, onDone }) {
               {file ? file.name : 'Drag & drop a file here, or click to browse'}
             </p>
             <p className="text-xs text-slate-400">Supports .csv and .xlsx</p>
+            {/* Accessible label for hidden file input */}
             <input
               ref={fileInputRef}
               type="file"
+              aria-label="Student import file"
               accept=".csv,.xlsx"
               className="hidden"
               onChange={(e) => handleFileSelect(e.target.files?.[0])}
@@ -749,6 +790,12 @@ function ImportModal({ modal, onClose, onDone }) {
             {parsedRows.length} student{parsedRows.length !== 1 ? 's' : ''} ready to import
           </p>
 
+          {hasErrors && (
+            <p className="mb-2 text-sm text-red-600">
+              {rowErrors.filter(Boolean).length} row(s) have missing required fields. Fix the file and re-upload.
+            </p>
+          )}
+
           {/* Preview table (first 10 rows) */}
           <div className="overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full text-sm">
@@ -759,6 +806,7 @@ function ImportModal({ modal, onClose, onDone }) {
                   <th className="px-3 py-2 font-medium">Roll No</th>
                   <th className="px-3 py-2 font-medium">Class</th>
                   <th className="px-3 py-2 font-medium">Section</th>
+                  <th className="px-3 py-2 font-medium">Issues</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -769,6 +817,7 @@ function ImportModal({ modal, onClose, onDone }) {
                     <td className="px-3 py-2 font-mono text-xs text-slate-600">{row.roll_no || '—'}</td>
                     <td className="px-3 py-2 text-slate-600">{row.class || '—'}</td>
                     <td className="px-3 py-2 text-slate-600">{row.section || '—'}</td>
+                    <td className="px-3 py-2 text-xs text-red-600">{rowErrors[i] || ''}</td>
                   </tr>
                 ))}
               </tbody>
@@ -780,7 +829,6 @@ function ImportModal({ modal, onClose, onDone }) {
             </p>
           )}
 
-          {previewError && <p className="text-sm text-red-600">{previewError}</p>}
           {importError && <p className="text-sm text-red-600">{importError}</p>}
 
           <div className="flex justify-between pt-2">
@@ -795,7 +843,7 @@ function ImportModal({ modal, onClose, onDone }) {
             <button
               type="button"
               onClick={handleImport}
-              disabled={importing || !!previewError}
+              disabled={importing || hasErrors}
               className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50"
             >
               {importing ? (
@@ -978,6 +1026,8 @@ export default function StudentsPage() {
 
   /** Fetches the student list for the current filters. */
   const fetchStudents = useCallback(async (page, search, classF, sectionF, status) => {
+    const controller = new AbortController();
+
     if (!hasFetchedRef.current) {
       setIsLoading(true);
     } else {
@@ -991,21 +1041,36 @@ export default function StudentsPage() {
       if (search) params.search = search;
       if (classF) params['class'] = classF;
       if (sectionF) params.section = sectionF;
-      const data = await listStudents(params);
-      setStudents(data.students || []);
-      setPagination(data.pagination || null);
-      hasFetchedRef.current = true;
+      const data = await listStudents(params, controller.signal);
+      // Only commit if not aborted
+      if (!controller.signal.aborted) {
+        setStudents(data.students || []);
+        setPagination(data.pagination || null);
+        hasFetchedRef.current = true;
+      }
     } catch (err) {
+      // Ignore abort errors — request was superseded
+      if (err.name === 'CanceledError' || err.name === 'AbortError') return;
       setError(err.response?.data?.message || 'Failed to load students');
     } finally {
-      setIsLoading(false);
-      setIsRefetching(false);
+      if (!controller.signal.aborted) {
+        setIsLoading(false);
+        setIsRefetching(false);
+      }
     }
+
+    return controller;
   }, []);
 
   // Single useEffect as fetch source — reacts to state changes
   useEffect(() => {
-    fetchStudents(currentPage, apiSearch, classFilter, sectionFilter, statusFilter);
+    // Abort any in-flight fetch when deps change
+    let controller;
+    const run = async () => {
+      controller = await fetchStudents(currentPage, apiSearch, classFilter, sectionFilter, statusFilter);
+    };
+    run();
+    return () => controller?.abort();
   }, [currentPage, apiSearch, classFilter, sectionFilter, statusFilter, fetchStudents]);
 
   /** Debounced search handler — updates inputValue immediately, apiSearch after delay. */
@@ -1105,8 +1170,13 @@ export default function StudentsPage() {
   /** Handles student modal success. */
   function onStudentSuccess(mode) {
     if (mode === 'add') {
-      setCurrentPage(1);
-      fetchStudents(1, apiSearch, classFilter, sectionFilter, statusFilter);
+      // Avoid duplicate fetch — if already on page 1 fetch directly,
+      // otherwise setCurrentPage triggers the effect
+      if (currentPage === 1) {
+        fetchStudents(1, apiSearch, classFilter, sectionFilter, statusFilter);
+      } else {
+        setCurrentPage(1);
+      }
     } else {
       refetch();
     }
@@ -1176,6 +1246,7 @@ export default function StudentsPage() {
             value={inputValue}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search name or roll number..."
+            aria-label="Search students by name or roll number"
             className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-9 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300"
           />
           {inputValue && (
@@ -1196,6 +1267,7 @@ export default function StudentsPage() {
           value={classInputValue}
           onChange={(e) => handleClassFilter(e.target.value)}
           placeholder="Class"
+          aria-label="Filter by class"
           className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300"
         />
 
@@ -1205,6 +1277,7 @@ export default function StudentsPage() {
           value={sectionInputValue}
           onChange={(e) => handleSectionFilter(e.target.value)}
           placeholder="Section"
+          aria-label="Filter by section"
           className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300"
         />
 
