@@ -17,19 +17,19 @@ const TRACKING_SEVERITY = { ACTIVE: 1, WEAK: 2, LOST: 3 };
 /** Visual config keyed by tracking status */
 const TRACKING_DISPLAY = {
   ACTIVE: { label: 'Active', dotClass: 'bg-green-500', textClass: 'text-green-600' },
-  WEAK:   { label: 'Weak',   dotClass: 'bg-amber-500', textClass: 'text-amber-600' },
-  LOST:   { label: 'Lost',   dotClass: 'bg-red-500',   textClass: 'text-red-600' },
+  WEAK: { label: 'Weak', dotClass: 'bg-amber-500', textClass: 'text-amber-600' },
+  LOST: { label: 'Lost', dotClass: 'bg-red-500', textClass: 'text-red-600' },
 };
 
 /* ──────────────────────────────────────────────────────────
  * Journey status → display label + colour class mapping
  * ────────────────────────────────────────────────────────── */
 const JOURNEY_STATUS_DISPLAY = {
-  PICKUP_STARTED:  { label: 'En Route',    classes: 'bg-green-100 text-green-700' },
-  ARRIVED_SCHOOL:  { label: 'At School',   classes: 'bg-blue-100 text-blue-700' },
-  DROP_STARTED:    { label: 'Returning',   classes: 'bg-amber-100 text-amber-700' },
-  COMPLETED:       { label: 'Done',        classes: 'bg-slate-200 text-slate-600' },
-  EXPIRED:         { label: 'Expired',     classes: 'bg-red-100 text-red-600' },
+  PICKUP_STARTED: { label: 'En Route', classes: 'bg-green-100 text-green-700' },
+  ARRIVED_SCHOOL: { label: 'At School', classes: 'bg-blue-100 text-blue-700' },
+  DROP_STARTED: { label: 'Returning', classes: 'bg-amber-100 text-amber-700' },
+  COMPLETED: { label: 'Done', classes: 'bg-slate-200 text-slate-600' },
+  EXPIRED: { label: 'Expired', classes: 'bg-red-100 text-red-600' },
 };
 
 /** Default for null / NOT_STARTED journey status */
@@ -64,8 +64,8 @@ function formatDeparture(time) {
 }
 
 /**
- * Computes "X min ago" from an ISO timestamp. Returns null if the timestamp
- * is not provided; returns "unknown" if tracking is degraded but no timestamp.
+ * Computes "X min ago" from journey timestamps.
+ * Returns "Last seen: unknown" when no valid timestamp is available.
  */
 function getLastSeenText(pickup, drop) {
   // Parse candidate timestamps from both journey legs
