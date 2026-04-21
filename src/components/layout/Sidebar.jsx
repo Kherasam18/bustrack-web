@@ -110,8 +110,11 @@ export default function Sidebar({ isOpen, onClose }) {
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2" aria-label="Main navigation">
         {navLinks.map((link) => {
           const Icon = link.icon;
-          // Active when the current path starts with the link's path
-          const isActive = location.pathname.startsWith(link.path);
+          // Match exact path or true child routes only — prevents false 
+          // positives from shared path prefixes (e.g. /bus vs /buses)
+          const isActive =
+            location.pathname === link.path ||
+            location.pathname.startsWith(link.path + '/');
 
           return (
             <Link

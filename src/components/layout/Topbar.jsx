@@ -42,9 +42,18 @@ function derivePageTitle(pathname) {
   if (ROUTE_TITLES[pathname]) return ROUTE_TITLES[pathname];
 
   // 2. Try dynamic route prefixes (longest prefix wins)
-  for (const route of DYNAMIC_ROUTE_TITLES) {
-    if (pathname.startsWith(route.prefix)) return route.title;
+  // Longest-prefix-wins: iterate all entries and track the most 
+  // specific match instead of returning the first match
+  let bestMatch = null;
+  for (const { prefix, title } of DYNAMIC_ROUTE_TITLES) {
+    if (
+      pathname.startsWith(prefix) &&
+      (!bestMatch || prefix.length > bestMatch.prefix.length)
+    ) {
+      bestMatch = { prefix, title };
+    }
   }
+  if (bestMatch) return bestMatch.title;
 
   // 3. Fallback
   return 'BusTrack';
