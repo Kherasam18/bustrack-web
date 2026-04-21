@@ -89,3 +89,32 @@ export async function reorderStops(busId, stops) {
   const response = await api.put(`/api/buses/${busId}/route/stops/reorder`, { stops });
   return response.data.data;
 }
+
+/* ──────────────────────────────────────────────────────────
+ * Student assignment
+ * ────────────────────────────────────────────────────────── */
+
+/** Lists students currently assigned to a bus. */
+export async function listBusStudents(busId, params) {
+  // GET /api/buses/:busId/students
+  // params: { search? }
+  const response = await api.get(`/api/buses/${busId}/students`, { params });
+  return response.data.data;
+}
+
+/** Assigns a student to a bus with optional stop assignment. */
+export async function assignStudent(busId, data) {
+  // POST /api/buses/:busId/students
+  // data: { student_id, stop_id? }
+  const response = await api.post(`/api/buses/${busId}/students`, data);
+  return response.data.data;
+}
+
+/** Unassigns a student from a bus. */
+export async function unassignStudent(busId, studentId) {
+  // DELETE /api/buses/:busId/students/:studentId
+  const response = await api.delete(
+    `/api/buses/${busId}/students/${studentId}`
+  );
+  return response.data.data;
+}
