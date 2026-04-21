@@ -210,8 +210,12 @@ function JourneyCard({ title, journey }) {
                   <span className={isResolved ? 'opacity-50' : ''}>
                     <JourneyFlagBadge type={flag.type} />
                   </span>
-                  {isResolved && (
+                  {isResolved ? (
+                    // Resolved flag — show confirmation label
                     <span className="text-xs text-slate-400">✓ Resolved</span>
+                  ) : (
+                    // Unresolved flag — show active indicator
+                    <span className="text-xs font-medium text-red-500">● Active</span>
                   )}
                 </div>
               );
@@ -282,6 +286,10 @@ export default function BusDetailPage() {
         const busData = busResponse.data.data.bus;
         setBus(busData);
 
+        // Page is ready — clear loading so bus detail renders immediately
+        // Location log fetch is non-critical and runs after the page renders
+        setIsLoading(false);
+
         // Determine which journey to fetch the location log for
         const activeJourney = selectActiveJourney(busData.pickup, busData.drop);
 
@@ -313,9 +321,8 @@ export default function BusDetailPage() {
           err.response?.data?.message || 'Failed to load bus details';
         setError(message);
       } finally {
-        // Skip loading state update if the request was aborted —
-        // the component is unmounted and setIsLoading would be a no-op
-        // or could interfere with the next screen's loading state
+        // On bus fetch failure the loading state must still be cleared
+        // Skip if aborted — component is unmounted
         if (!controller.signal.aborted) {
           setIsLoading(false);
         }
