@@ -46,6 +46,7 @@ import {
   unassignStudent,
 } from '../../api/buses.api';
 import { listStudents } from '../../api/students.api';
+import { listDrivers } from '../../api/users.api';
 import { cn } from '../../lib/utils';
 
 /* ──────────────────────────────────────────────────────────
@@ -333,21 +334,46 @@ function RouteModal({ modal, onClose, onSuccess }) {
   const isEdit = modal.mode === 'edit';
   const [routeName, setRouteName] = useState('');
   const [departure, setDeparture] = useState('');
+  const [drivers, setDrivers] = useState([]);
+  const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
+  const [selectedDriverId, setSelectedDriverId] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState(null);
 
   // Re-initialise form fields whenever the modal opens or its data changes
   useEffect(() => {
-    if (!modal.open) return;
+    if (!modal.open) {
+      setSelectedDriverId('');
+      setDrivers([]);
+      setIsLoadingDrivers(false);
+      return;
+    }
     if (isEdit && modal.route) {
       setRouteName(modal.route.route_name || '');
       // Normalise HH:MM:SS → HH:MM so the field passes validation unchanged
       setDeparture(fmtTime(modal.route.scheduled_departure) || '');
+      setSelectedDriverId(modal.route.default_driver_id || '');
     } else {
       setRouteName('');
       setDeparture('');
+      setSelectedDriverId('');
     }
     setFormError(null);
+
+    // Fetch active drivers for the dropdown whenever modal opens
+    async function loadDrivers() {
+      setIsLoadingDrivers(true);
+      try {
+        const data = await listDrivers({ status: 'active', limit: 100 });
+        setDrivers(data.drivers || []);
+      } catch (_) {
+        // Non-critical — dropdown shows empty, user can still save
+        setDrivers([]);
+      } finally {
+        setIsLoadingDrivers(false);
+      }
+    }
+    loadDrivers();
   }, [isEdit, modal.route, modal.open]);
 
   /** Validates and submits the route form. */
@@ -380,6 +406,11 @@ function RouteModal({ modal, onClose, onSuccess }) {
       if (departure && departure !== modal.route?.scheduled_departure) {
         payload.scheduled_departure = departure;
       }
+      // Normalise to empty string for comparison
+      const originalDriverId = modal.route?.default_driver_id || '';
+      if (selectedDriverId !== originalDriverId) {
+        payload.default_driver_id = selectedDriverId || null;
+      }
       if (Object.keys(payload).length === 0) {
         onClose();
         return;
@@ -387,6 +418,7 @@ function RouteModal({ modal, onClose, onSuccess }) {
     } else {
       payload.route_name = trimmedName;
       payload.scheduled_departure = departure;
+      payload.default_driver_id = selectedDriverId || null;
     }
 
     setSaving(true);
@@ -437,10 +469,32 @@ function RouteModal({ modal, onClose, onSuccess }) {
           <p className="mt-1 text-xs text-slate-400">24-hour format (e.g. 08:30)</p>
         </div>
 
-        {/* Driver assignment placeholder */}
-        <p className="text-xs text-slate-400 italic">
-          Driver assignment available after drivers are configured.
-        </p>
+        {/* Default driver selection */}
+        <div>
+          <label
+            htmlFor="route-driver"
+            className="mb-1 block text-sm font-medium text-slate-700"
+          >
+            Default Driver (optional)
+          </label>
+          <select
+            id="route-driver"
+            value={selectedDriverId}
+            onChange={(e) => setSelectedDriverId(e.target.value)}
+            disabled={saving || isLoadingDrivers}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50"
+          >
+            <option value="">— No driver assigned —</option>
+            {drivers.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name} ({d.employee_id})
+              </option>
+            ))}
+          </select>
+          {isLoadingDrivers && (
+            <p className="mt-1 text-xs text-slate-400">Loading drivers...</p>
+          )}
+        </div>
 
         {formError && (
           <p className="text-sm text-red-600">{formError}</p>
