@@ -61,3 +61,54 @@ export async function resetDriverPassword(userId, newPassword) {
   );
   return response.data.data;
 }
+
+/* ──────────────────────────────────────────────────────────
+ * Parent CRUD (Phase 7f-ii)
+ * ────────────────────────────────────────────────────────── */
+
+/** Lists parents with pagination, search, and status filters. */
+export async function listParents(params, signal) {
+  const response = await api.get('/api/users/parents', {
+    params,
+    ...(signal ? { signal } : {}),
+  });
+  return response.data.data;
+}
+
+/** Creates a new parent account. No password — backend auto-generates one. */
+export async function createParent(data) {
+  const response = await api.post('/api/users/parents', data);
+  return response.data.data;
+}
+
+/** Updates an existing parent (name, phone, email). */
+export async function updateParent(userId, data) {
+  const response = await api.patch(`/api/users/parents/${userId}`, data);
+  return response.data.data;
+}
+
+/** Deactivates a parent — prevents login to the parent app. */
+export async function deactivateParent(userId) {
+  const response = await api.delete(`/api/users/parents/${userId}/deactivate`);
+  return response.data.data;
+}
+
+/** Reactivates an inactive parent — restores login access. */
+export async function reactivateParent(userId) {
+  const response = await api.put(`/api/users/parents/${userId}/reactivate`);
+  return response.data.data;
+}
+
+/** Resets a parent's password. No body — backend regenerates automatically. */
+export async function resetParentPassword(userId) {
+  const response = await api.post(
+    `/api/users/parents/${userId}/reset-password`
+  );
+  return response.data.data;
+}
+
+/** Fetches a single parent with their linked children. */
+export async function getParent(userId) {
+  const response = await api.get(`/api/users/parents/${userId}`);
+  return response.data.data;
+}

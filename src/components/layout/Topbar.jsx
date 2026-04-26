@@ -18,6 +18,7 @@ const ROUTE_TITLES = {
   '/school-admin/buses': 'Buses & Routes',
   '/school-admin/students': 'Students',
   '/school-admin/drivers': 'Drivers',
+  '/school-admin/parents': 'Parents',
   '/school-admin/notifications': 'Notifications',
   '/super-admin/schools': 'Schools',
 };

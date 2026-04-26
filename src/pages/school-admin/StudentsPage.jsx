@@ -395,12 +395,12 @@ function ParentModal({ modal, onClose }) {
     setIsLoadingParents(true);
     setLinkError(null);
     try {
-      // getStudent returns the student object directly (response.data.data)
-      // — not wrapped in { student: ... }
-      const student = await getStudent(modal.studentId);
+      // getStudent returns { student: {...} } as response.data.data
+      // — parents is nested inside the student object
+      const data = await getStudent(modal.studentId);
       // Only commit if this is still the latest request
       if (token === parentRequestRef.current) {
-        setParents(student.parents || []);
+        setParents(data.student?.parents || []);
       }
     } catch (err) {
       // Only commit if this is still the latest request
