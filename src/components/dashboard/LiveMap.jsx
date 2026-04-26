@@ -42,12 +42,14 @@ function getMinutesAgoText(isoTimestamp) {
  * @param {*} val
  * @returns {boolean}
  */
+// Coerce to number first — PostgreSQL NUMERIC returns as string
 // Validate finite number and geographic range
 // isLat=true enforces -90..90, isLat=false enforces -180..180
 function isValidCoord(val, isLat = false) {
-  if (typeof val !== 'number' || !Number.isFinite(val)) return false;
-  if (isLat) return val >= -90 && val <= 90;
-  return val >= -180 && val <= 180;
+  const num = Number(val);
+  if (!Number.isFinite(num)) return false;
+  if (isLat) return num >= -90 && num <= 90;
+  return num >= -180 && num <= 180;
 }
 
 /**
@@ -64,7 +66,8 @@ export default function LiveMap({ lat, lng, trackingStatus, lastLocationAt }) {
   const hasLocation = isValidCoord(lat, true) && isValidCoord(lng, false);
 
   // Compute map centre and zoom based on location availability
-  const center = hasLocation ? { lat, lng } : DEFAULT_CENTER;
+  // Wrap with Number() — PostgreSQL NUMERIC columns arrive as strings
+  const center = hasLocation ? { lat: Number(lat), lng: Number(lng) } : DEFAULT_CENTER;
   const zoom = hasLocation ? 15 : 5;
 
   // Determine whether to show a tracking status banner
@@ -99,7 +102,7 @@ export default function LiveMap({ lat, lng, trackingStatus, lastLocationAt }) {
         options={MAP_OPTIONS}
       >
         {/* Marker — only rendered when coordinates are valid */}
-        {hasLocation && <Marker position={{ lat, lng }} />}
+        {hasLocation && <Marker position={{ lat: Number(lat), lng: Number(lng) }} />}
       </GoogleMap>
 
       {/* No-location overlay — shown when lat/lng are not available */}

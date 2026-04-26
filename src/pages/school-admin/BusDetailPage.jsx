@@ -337,8 +337,13 @@ export default function BusDetailPage() {
 
   // Determine which journey provides the map data
   const activeJourney = bus ? selectActiveJourney(bus.pickup, bus.drop) : null;
-  const mapLat = activeJourney?.last_known_lat ?? null;
-  const mapLng = activeJourney?.last_known_lng ?? null;
+  // Coerce NUMERIC string to number for LiveMap — null stays null
+  const mapLat = activeJourney?.last_known_lat != null
+    ? parseFloat(activeJourney.last_known_lat)
+    : null;
+  const mapLng = activeJourney?.last_known_lng != null
+    ? parseFloat(activeJourney.last_known_lng)
+    : null;
   const mapTrackingStatus = activeJourney?.tracking_status ?? null;
   const mapLastLocationAt = activeJourney?.last_location_at ?? null;
 
@@ -447,10 +452,16 @@ export default function BusDetailPage() {
                           {formatTimeFromISO(point.recorded_at)}
                         </td>
                         <td className="px-4 py-2 font-mono text-slate-700">
-                          {typeof point.lat === 'number' ? point.lat.toFixed(6) : '—'}
+                          {/* Use parseFloat — PostgreSQL NUMERIC returns as string not number */}
+                          {!Number.isNaN(parseFloat(point.lat))
+                            ? parseFloat(point.lat).toFixed(6)
+                            : '—'}
                         </td>
                         <td className="px-4 py-2 font-mono text-slate-700">
-                          {typeof point.lng === 'number' ? point.lng.toFixed(6) : '—'}
+                          {/* Use parseFloat — PostgreSQL NUMERIC returns as string not number */}
+                          {!Number.isNaN(parseFloat(point.lng))
+                            ? parseFloat(point.lng).toFixed(6)
+                            : '—'}
                         </td>
                         <td className="px-4 py-2 text-slate-700">
                           {point.speed !== null && point.speed !== undefined
