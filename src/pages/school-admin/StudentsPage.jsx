@@ -186,7 +186,7 @@ function Modal({ open, onClose, title, wide, disableClose = false, children }) {
         aria-label={title}
         tabIndex={-1}
         className={cn(
-          'relative z-10 w-full rounded-xl border border-slate-200 bg-white p-6 shadow-xl',
+          'relative z-10 mx-4 w-full rounded-xl border border-slate-200 bg-white p-6 shadow-xl md:mx-0',
           wide ? 'max-w-lg' : 'max-w-md'
         )}
       >
@@ -1237,7 +1237,7 @@ export default function StudentsPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6" ref={tableTopRef}>
       {/* ── Header row ─────────────────────────────────── */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xl font-semibold text-slate-800">Students</p>
         <div className="flex items-center gap-2">
           <button
@@ -1268,9 +1268,9 @@ export default function StudentsPage() {
       )}
 
       {/* ── Search + filter row ────────────────────────── */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        {/* Search input */}
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="mb-4 flex flex-col gap-3">
+        {/* Row 1: Search */}
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
@@ -1292,43 +1292,46 @@ export default function StudentsPage() {
           )}
         </div>
 
-        {/* Class filter */}
-        <input
-          type="text"
-          value={classInputValue}
-          onChange={(e) => handleClassFilter(e.target.value)}
-          placeholder="Class"
-          aria-label="Filter by class"
-          className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300"
-        />
+        {/* Row 2: Class + Section + Status filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Class filter */}
+          <input
+            type="text"
+            value={classInputValue}
+            onChange={(e) => handleClassFilter(e.target.value)}
+            placeholder="Class"
+            aria-label="Filter by class"
+            className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300"
+          />
 
-        {/* Section filter */}
-        <input
-          type="text"
-          value={sectionInputValue}
-          onChange={(e) => handleSectionFilter(e.target.value)}
-          placeholder="Section"
-          aria-label="Filter by section"
-          className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300"
-        />
+          {/* Section filter */}
+          <input
+            type="text"
+            value={sectionInputValue}
+            onChange={(e) => handleSectionFilter(e.target.value)}
+            placeholder="Section"
+            aria-label="Filter by section"
+            className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300"
+          />
 
-        {/* Status filter buttons */}
-        <div className="flex rounded-lg border border-slate-300 overflow-hidden">
-          {filterBtns.map((btn) => (
-            <button
-              key={btn.value}
-              type="button"
-              onClick={() => handleStatusFilter(btn.value)}
-              className={cn(
-                'px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-slate-300',
-                statusFilter === btn.value
-                  ? 'bg-slate-800 text-white'
-                  : 'bg-white text-slate-600 hover:bg-slate-50'
-              )}
-            >
-              {btn.label}
-            </button>
-          ))}
+          {/* Status filter buttons */}
+          <div className="flex overflow-hidden rounded-lg border border-slate-300">
+            {filterBtns.map((btn) => (
+              <button
+                key={btn.value}
+                type="button"
+                onClick={() => handleStatusFilter(btn.value)}
+                className={cn(
+                  'px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-slate-300',
+                  statusFilter === btn.value
+                    ? 'bg-slate-800 text-white'
+                    : 'bg-white text-slate-600 hover:bg-slate-50'
+                )}
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -1347,7 +1350,8 @@ export default function StudentsPage() {
         </div>
       )}
 
-      {/* ── Students table ─────────────────────────────── */}
+      {/* ── Students table — hidden on mobile, visible on md+ ── */}
+      <div className="hidden md:block">
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-600">
@@ -1485,10 +1489,116 @@ export default function StudentsPage() {
           </tbody>
         </table>
       </div>
+      </div>
+
+      {/* ── Mobile card list — visible on mobile, hidden on md+ ── */}
+      <div className="md:hidden space-y-3">
+        {/* Loading skeleton cards */}
+        {isLoading && Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="animate-pulse space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+            <div className="h-4 w-36 rounded bg-slate-200" />
+            <div className="h-3 w-24 rounded bg-slate-200" />
+            <div className="h-3 w-32 rounded bg-slate-200" />
+          </div>
+        ))}
+
+        {/* Empty state */}
+        {!isLoading && !error && students.length === 0 && (
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-16 text-center">
+            <div className="flex flex-col items-center">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                <GraduationCap className="h-6 w-6 text-slate-400" />
+              </div>
+              <p className="text-sm text-slate-500">No students found</p>
+            </div>
+          </div>
+        )}
+
+        {/* Student cards */}
+        {!isLoading && students.map((student) => (
+          <div key={student.id} className="rounded-xl border border-slate-200 bg-white p-4">
+            {/* Card header: name + status badge */}
+            <div className="mb-3 flex items-start justify-between">
+              <div>
+                <p className="font-medium text-slate-800">{student.name}</p>
+                <p className="mt-0.5 font-mono text-xs text-slate-500">
+                  {student.roll_no}
+                </p>
+              </div>
+              <span className={cn(
+                'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                student.is_active
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-slate-100 text-slate-500'
+              )}>
+                {student.is_active ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+
+            {/* Card body: class, bus */}
+            <div className="mb-4 space-y-1">
+              <p className="text-sm text-slate-600">
+                <span className="text-xs text-slate-400">Class: </span>
+                {student['class']}
+                {student.section ? ` ${student.section}` : ''}
+              </p>
+              <p className="text-sm text-slate-600">
+                <span className="text-xs text-slate-400">Bus: </span>
+                {student.bus_number || (
+                  <span className="text-slate-400">Not assigned</span>
+                )}
+              </p>
+            </div>
+
+            {/* Card footer: action buttons */}
+            <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
+              <button
+                type="button"
+                onClick={() => openEditStudent(student)}
+                aria-label={`Edit student ${student.name}`}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => openParentModal(student)}
+                aria-label={`Manage parents for ${student.name}`}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
+              >
+                <Users className="h-3.5 w-3.5" />
+                Parents
+              </button>
+              {student.is_active ? (
+                <button
+                  type="button"
+                  onClick={() => openDeactivate(student)}
+                  aria-label={`Deactivate student ${student.name}`}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300"
+                >
+                  <PowerOff className="h-3.5 w-3.5" />
+                  Deactivate
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openReactivate(student)}
+                  aria-label={`Reactivate student ${student.name}`}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-green-200 px-3 py-2 text-xs font-medium text-green-600 hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-300"
+                >
+                  <Power className="h-3.5 w-3.5" />
+                  Reactivate
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* ── Pagination ─────────────────────────────────── */}
       {pagination && pagination.total_pages > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"
             onClick={() => goToPage(currentPage - 1)}

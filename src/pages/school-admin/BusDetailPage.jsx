@@ -151,7 +151,7 @@ function JourneyCard({ title, journey }) {
       {/* Header with title and status badges */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-semibold text-slate-800">{title}</h3>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Journey status badge */}
           <span
             className={cn(
@@ -386,7 +386,7 @@ export default function BusDetailPage() {
           {/* Bus info header card */}
           <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6">
             <p className="text-2xl font-bold text-slate-900">{bus.bus_number}</p>
-            <div className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
+            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
               <InfoStat label="Driver" value={bus.driver_name} icon={UserCheck} />
               <InfoStat label="Route" value={bus.route_name} icon={Route} />
               <InfoStat label="Capacity" value={bus.capacity} icon={Users} />
@@ -425,9 +425,14 @@ export default function BusDetailPage() {
                 )}
               </p>
 
+              {/* Mobile scroll hint */}
+              <p className="mb-2 text-xs text-slate-400 md:hidden">
+                Scroll horizontally to see all columns
+              </p>
+
               {/* Location log table */}
               <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[500px] text-sm">
                   <thead className="bg-slate-50 text-left text-slate-600">
                     <tr>
                       <th className="px-4 py-2 font-medium">#</th>

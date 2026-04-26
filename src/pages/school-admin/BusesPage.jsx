@@ -180,7 +180,7 @@ function Modal({ open, onClose, title, wide, disableClose = false, children }) {
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className="relative z-10 w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl"
+        className="relative z-10 mx-4 w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl md:mx-0"
       >
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
@@ -1059,6 +1059,263 @@ function RoutePanel({
 }
 
 /* ──────────────────────────────────────────────────────────
+ * Mobile route panel (card-based layout for < md screens)
+ * ────────────────────────────────────────────────────────── */
+
+function MobileRoutePanel({
+  busId,
+  route,
+  isRouteLoading,
+  routeError,
+  assignedStudents,
+  isStudentsLoading,
+  studentsError,
+  reorderError,
+  onEditRoute,
+  onCreateRoute,
+  onAddStop,
+  onEditStop,
+  onDeleteStop,
+  onMoveStop,
+  onAssignStudent,
+  onUnassignStudent,
+}) {
+  // Loading state
+  if (isRouteLoading) {
+    return (
+      <div className="border-t border-slate-200 bg-slate-50 p-4">
+        <div className="animate-pulse space-y-2">
+          <div className="h-4 w-32 rounded bg-slate-200" />
+          <div className="h-3 w-48 rounded bg-slate-200" />
+        </div>
+      </div>
+    );
+  }
+
+  // Error fetching route
+  if (routeError) {
+    return (
+      <div className="border-t border-slate-200 bg-slate-50 p-4">
+        <p className="text-sm text-red-600">{routeError}</p>
+      </div>
+    );
+  }
+
+  // No route configured
+  if (!route) {
+    return (
+      <div className="border-t border-slate-200 bg-slate-50 p-4">
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-slate-500">No route configured for this bus.</p>
+          <button
+            type="button"
+            onClick={() => onCreateRoute(busId)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Create Route
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Sort stops by sequence
+  const sortedStops = [...(route.stops || [])].sort(
+    (a, b) => a.stop_sequence - b.stop_sequence
+  );
+
+  return (
+    <div className="space-y-4 border-t border-slate-200 bg-slate-50 p-4">
+      {/* Section 1 — Route info */}
+      <div>
+        <div className="mb-2 flex items-start justify-between">
+          <div>
+            <p className="font-semibold text-slate-800">{route.route_name}</p>
+            <p className="text-sm text-slate-500">
+              Departure: {fmtTime(route.scheduled_departure)}
+            </p>
+            <p className="text-sm text-slate-500">
+              Driver: {route.default_driver_name || 'No driver assigned'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onEditRoute(busId, route)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Edit
+          </button>
+        </div>
+      </div>
+
+      {/* Section 2 — Stops */}
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-sm font-medium text-slate-700">
+            Stops ({sortedStops.length})
+          </p>
+          <button
+            type="button"
+            onClick={() => onAddStop(busId)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Stop
+          </button>
+        </div>
+
+        {sortedStops.length === 0 ? (
+          <p className="text-sm text-slate-400">No stops added yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {sortedStops.map((stop, idx) => (
+              <div key={stop.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                {/* Stop header: sequence + name */}
+                <div className="mb-2 flex items-start justify-between">
+                  <div>
+                    <span className="mr-1 text-xs text-slate-400">#{stop.stop_sequence}</span>
+                    <span className="text-sm font-medium text-slate-800">{stop.stop_name}</span>
+                  </div>
+                  <span className="text-xs text-slate-400">
+                    {stop.students?.length ?? 0} students
+                  </span>
+                </div>
+
+                {/* Lat/Lng */}
+                <p className="mb-3 font-mono text-xs text-slate-500">
+                  {typeof stop.lat === 'number'
+                    ? stop.lat.toFixed(4)
+                    : parseFloat(stop.lat).toFixed(4)},{' '}
+                  {typeof stop.lng === 'number'
+                    ? stop.lng.toFixed(4)
+                    : parseFloat(stop.lng).toFixed(4)}
+                </p>
+
+                {/* Stop actions */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onMoveStop(busId, sortedStops, idx, 'up')}
+                    disabled={idx === 0}
+                    aria-label="Move stop up"
+                    className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onMoveStop(busId, sortedStops, idx, 'down')}
+                    disabled={idx === sortedStops.length - 1}
+                    aria-label="Move stop down"
+                    className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onEditStop(busId, stop)}
+                    aria-label={`Edit stop ${stop.stop_name}`}
+                    className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteStop(busId, stop.id)}
+                    aria-label={`Delete stop ${stop.stop_name}`}
+                    className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg border border-red-200 px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Reorder error */}
+        {reorderError && (
+          <p className="mt-1 text-xs text-red-600">{reorderError}</p>
+        )}
+      </div>
+
+      {/* Section 3 — Assigned Students */}
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-sm font-medium text-slate-700">
+            Assigned Students ({assignedStudents.length})
+          </p>
+          <button
+            type="button"
+            onClick={() => onAssignStudent(busId)}
+            aria-label="Assign student to bus"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500"
+          >
+            <UserPlus className="h-3.5 w-3.5" />
+            Assign
+          </button>
+        </div>
+
+        {isStudentsLoading && (
+          <div className="animate-pulse space-y-2">
+            <div className="h-12 rounded-lg bg-slate-200" />
+            <div className="h-12 rounded-lg bg-slate-200" />
+          </div>
+        )}
+
+        {!isStudentsLoading && studentsError && (
+          <p className="text-sm text-red-600">{studentsError}</p>
+        )}
+
+        {!isStudentsLoading && !studentsError && assignedStudents.length === 0 && (
+          <p className="text-sm text-slate-400">No students assigned to this bus.</p>
+        )}
+
+        {!isStudentsLoading && !studentsError && assignedStudents.length > 0 && (
+          <div className="space-y-2">
+            {assignedStudents.map((student) => (
+              <div
+                key={student.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-slate-800">
+                    {student.name}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    <span className="font-mono">{student.roll_no}</span>
+                    {' · '}
+                    {student.class}{student.section ? ` ${student.section}` : ''}
+                  </p>
+                  {student.stop_name && (
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      Stop: {student.stop_name}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onUnassignStudent(busId, student.id, student.name)}
+                  aria-label={`Unassign ${student.name}`}
+                  className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-red-200 px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300"
+                >
+                  <UserMinus className="h-3 w-3" />
+                  Unassign
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────
  * Assign Student modal — search, select, optional stop pick
  * ────────────────────────────────────────────────────────── */
 
@@ -1711,12 +1968,12 @@ export default function BusesPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6" ref={tableTopRef}>
       {/* ── Header row ─────────────────────────────────── */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xl font-semibold text-slate-800">Buses & Routes</p>
         <button
           type="button"
           onClick={openAddBus}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500"
+          className="inline-flex items-center gap-1.5 self-start rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500"
         >
           <Plus className="h-4 w-4" />
           Add Bus
@@ -1724,9 +1981,9 @@ export default function BusesPage() {
       </div>
 
       {/* ── Search + filter row ────────────────────────── */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 flex flex-col flex-wrap items-start gap-3 sm:flex-row sm:items-center">
         {/* Search input */}
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative w-full min-w-0 flex-1 sm:w-auto">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
@@ -1748,7 +2005,7 @@ export default function BusesPage() {
         </div>
 
         {/* Status filter buttons */}
-        <div className="flex rounded-lg border border-slate-300 overflow-hidden">
+        <div className="flex overflow-hidden rounded-lg border border-slate-300">
           {filterBtns.map((btn) => (
             <button
               key={btn.value}
@@ -1782,7 +2039,8 @@ export default function BusesPage() {
         </div>
       )}
 
-      {/* ── Bus table ──────────────────────────────────── */}
+      {/* ── Bus table — hidden on mobile, visible on md+ ── */}
+      <div className="hidden md:block">
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-600">
@@ -1963,10 +2221,162 @@ export default function BusesPage() {
           </tbody>
         </table>
       </div>
+      </div>
+
+      {/* ── Mobile card list — visible on mobile, hidden on md+ ── */}
+      <div className="md:hidden space-y-3">
+        {/* Loading skeletons */}
+        {isLoading && Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="animate-pulse space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+            <div className="h-4 w-28 rounded bg-slate-200" />
+            <div className="h-3 w-40 rounded bg-slate-200" />
+            <div className="h-3 w-32 rounded bg-slate-200" />
+          </div>
+        ))}
+
+        {/* Empty state */}
+        {!isLoading && !error && buses.length === 0 && (
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-16 text-center">
+            <div className="flex flex-col items-center">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                <Bus className="h-6 w-6 text-slate-400" />
+              </div>
+              <p className="text-sm text-slate-500">No buses found</p>
+            </div>
+          </div>
+        )}
+
+        {/* Bus cards */}
+        {!isLoading && buses.map((bus) => {
+          const isExpanded = expandedBusId === bus.id;
+          const seatBadge = SEAT_BADGE[bus.seat_status] || SEAT_BADGE.AVAILABLE;
+
+          return (
+            <div key={bus.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              {/* Card header */}
+              <div className="p-4">
+                <div className="mb-3 flex items-start justify-between">
+                  <div>
+                    <p className="font-medium text-slate-800">{bus.bus_number}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {bus.route_name || (
+                        <span className="text-slate-400">No route</span>
+                      )}
+                    </p>
+                  </div>
+                  <span className={cn(
+                    'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                    bus.is_active
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-slate-100 text-slate-500'
+                  )}>
+                    {bus.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+
+                {/* Bus details */}
+                <div className="mb-3 grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-xs text-slate-400">Departure</p>
+                    <p className="text-sm text-slate-600">{fmtTime(bus.scheduled_departure)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Driver</p>
+                    <p className="text-sm text-slate-600">{bus.default_driver_name || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Students</p>
+                    <p className="text-sm text-slate-600">{bus.student_count}/{bus.capacity}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Seats</p>
+                    <span className={cn(
+                      'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                      seatBadge.classes
+                    )}>
+                      {seatBadge.label}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => openEditBus(bus)}
+                    aria-label={`Edit bus ${bus.bus_number}`}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit
+                  </button>
+
+                  {bus.is_active ? (
+                    <button
+                      type="button"
+                      onClick={() => openDeactivate(bus.id)}
+                      aria-label={`Deactivate bus ${bus.bus_number}`}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300"
+                    >
+                      <PowerOff className="h-3.5 w-3.5" />
+                      Deactivate
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => openReactivate(bus.id)}
+                      aria-label={`Reactivate bus ${bus.bus_number}`}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-green-200 px-3 py-2 text-xs font-medium text-green-600 hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-300"
+                    >
+                      <Power className="h-3.5 w-3.5" />
+                      Reactivate
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => toggleExpand(bus.id)}
+                    aria-label={isExpanded
+                      ? `Collapse route for ${bus.bus_number}`
+                      : `Expand route for ${bus.bus_number}`}
+                    className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  >
+                    {isExpanded
+                      ? <ChevronUp className="h-3.5 w-3.5" />
+                      : <ChevronDown className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Expanded route panel — mobile version */}
+              {isExpanded && (
+                <MobileRoutePanel
+                  busId={bus.id}
+                  route={busRoute[bus.id]}
+                  isRouteLoading={busRouteLoading[bus.id]}
+                  routeError={busRouteError[bus.id]}
+                  assignedStudents={busStudents[bus.id] || []}
+                  isStudentsLoading={busStudentsLoading[bus.id] || false}
+                  studentsError={busStudentsError[bus.id] || null}
+                  reorderError={reorderError[bus.id] || null}
+                  onEditRoute={openEditRoute}
+                  onCreateRoute={openCreateRoute}
+                  onAddStop={openAddStop}
+                  onEditStop={openEditStop}
+                  onDeleteStop={openDeleteStop}
+                  onMoveStop={handleMoveStop}
+                  onAssignStudent={openAssignStudent}
+                  onUnassignStudent={openUnassignStudent}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       {/* ── Pagination ─────────────────────────────────── */}
       {pagination && pagination.total_pages > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           {/* Previous */}
           <button
             type="button"

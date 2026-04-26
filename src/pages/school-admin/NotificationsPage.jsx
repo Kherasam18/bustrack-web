@@ -176,7 +176,7 @@ export default function NotificationsPage() {
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
 
       {/* Header row */}
-      <div className="mb-2 flex items-start justify-between">
+      <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xl font-semibold text-slate-800">
             Today's Notifications
@@ -190,7 +190,7 @@ export default function NotificationsPage() {
           onClick={handleManualRefresh}
           disabled={isLoading || isRefetching}
           aria-label="Refresh notifications"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 self-start rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50"
         >
           <RefreshCw className={cn('h-4 w-4', isRefetching && 'animate-spin')} />
           Refresh
@@ -212,7 +212,7 @@ export default function NotificationsPage() {
         >
           Filter by Journey ID
         </label>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
             id="journey-filter"
             type="text"
@@ -220,28 +220,30 @@ export default function NotificationsPage() {
             onChange={(e) => handleFilterChange(e.target.value)}
             placeholder="Paste journey UUID to filter..."
             aria-label="Filter notifications by journey ID"
-            className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300"
+            className="min-w-0 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300 sm:flex-1"
           />
-          <button
-            type="button"
-            onClick={handleApplyFilter}
-            disabled={!journeyIdFilter.trim()}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-40"
-          >
-            <Filter className="h-4 w-4" />
-            Apply
-          </button>
-          {journeyIdFilter && (
+          <div className="flex gap-2">
             <button
               type="button"
-              onClick={handleClearFilter}
-              aria-label="Clear journey filter"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
+              onClick={handleApplyFilter}
+              disabled={!journeyIdFilter.trim()}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-40"
             >
-              <X className="h-4 w-4" />
-              Clear
+              <Filter className="h-4 w-4" />
+              Apply
             </button>
-          )}
+            {journeyIdFilter && (
+              <button
+                type="button"
+                onClick={handleClearFilter}
+                aria-label="Clear journey filter"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
+              >
+                <X className="h-4 w-4" />
+                Clear
+              </button>
+            )}
+          </div>
         </div>
         <p className="mt-1 text-xs text-slate-400">
           Leave empty to show all of today's notifications
@@ -270,7 +272,8 @@ export default function NotificationsPage() {
         </div>
       )}
 
-      {/* Notifications table */}
+      {/* Notifications table — hidden on mobile, visible on md+ */}
+      <div className="hidden md:block">
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-600">
@@ -386,6 +389,99 @@ export default function NotificationsPage() {
 
           </tbody>
         </table>
+      </div>
+      </div>
+
+      {/* Mobile card list — visible on mobile, hidden on md+ */}
+      <div className="md:hidden space-y-3">
+        {/* Loading skeleton cards */}
+        {isLoading && Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="animate-pulse space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+            <div className="h-3 w-20 rounded bg-slate-200" />
+            <div className="h-4 w-40 rounded bg-slate-200" />
+            <div className="h-3 w-32 rounded bg-slate-200" />
+            <div className="h-3 w-full rounded bg-slate-200" />
+          </div>
+        ))}
+
+        {/* Empty state */}
+        {!isLoading && !error && notifications.length === 0 && (
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-16 text-center">
+            <div className="flex flex-col items-center">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                <Bell className="h-6 w-6 text-slate-400" />
+              </div>
+              <p className="text-sm text-slate-500">
+                {journeyIdFilter
+                  ? 'No notifications found for this journey ID.'
+                  : 'No notifications sent today'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Notification cards */}
+        {!isLoading && notifications.map((n) => {
+          const typeConf = TYPE_CONFIG[n.type] || {
+            label: n.type,
+            classes: 'bg-slate-100 text-slate-600',
+          };
+          const deliveryConf = DELIVERY_CONFIG[n.delivery_status] || {
+            label: n.delivery_status,
+            classes: 'bg-slate-100 text-slate-600',
+          };
+
+          return (
+            <div key={n.id} className="rounded-xl border border-slate-200 bg-white p-4">
+              {/* Card header: time + type badge */}
+              <div className="mb-3 flex items-center justify-between">
+                <span className="font-mono text-xs text-slate-500">
+                  {fmtTime(n.created_at)}
+                </span>
+                <span className={cn(
+                  'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                  typeConf.classes
+                )}>
+                  {typeConf.label}
+                </span>
+              </div>
+
+              {/* Recipient */}
+              <div className="mb-2">
+                <p className="text-sm font-medium text-slate-800">
+                  {n.recipient_name}
+                </p>
+                <p className="font-mono text-xs text-slate-400">
+                  {n.recipient_user_id?.substring(0, 8)}...
+                </p>
+              </div>
+
+              {/* Message body */}
+              <p className="mb-3 text-sm text-slate-600">
+                {n.body}
+              </p>
+
+              {/* Footer: delivery badge + read status */}
+              <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                <span className={cn(
+                  'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                  deliveryConf.classes
+                )}>
+                  {deliveryConf.label}
+                </span>
+                {n.is_read ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-green-600">
+                    <span className="text-green-500">●</span> Read
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                    <span className="text-slate-300">●</span> Unread
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

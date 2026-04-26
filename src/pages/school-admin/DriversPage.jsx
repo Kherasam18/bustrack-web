@@ -143,7 +143,7 @@ function Modal({ open, onClose, title, disableClose = false, children }) {
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className="relative z-10 w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl"
+        className="relative z-10 mx-4 w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl md:mx-0"
       >
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
@@ -845,7 +845,7 @@ export default function DriversPage() {
       )}
 
       {/* Search + filter row */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="relative min-w-[200px] flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -902,7 +902,8 @@ export default function DriversPage() {
         </div>
       )}
 
-      {/* Drivers table */}
+      {/* Drivers table — hidden on mobile, visible on md+ */}
+      <div className="hidden md:block">
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-600">
@@ -1016,10 +1017,117 @@ export default function DriversPage() {
           </tbody>
         </table>
       </div>
+      </div>
+
+      {/* Mobile card list — visible on mobile, hidden on md+ */}
+      <div className="md:hidden space-y-3">
+        {/* Loading skeleton cards */}
+        {isLoading && Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="animate-pulse space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+            <div className="h-4 w-32 rounded bg-slate-200" />
+            <div className="h-3 w-24 rounded bg-slate-200" />
+            <div className="h-3 w-40 rounded bg-slate-200" />
+          </div>
+        ))}
+
+        {/* Empty state */}
+        {!isLoading && !error && drivers.length === 0 && (
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-16 text-center">
+            <div className="flex flex-col items-center">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                <UserCheck className="h-6 w-6 text-slate-400" />
+              </div>
+              <p className="text-sm text-slate-500">No drivers found</p>
+            </div>
+          </div>
+        )}
+
+        {/* Driver cards */}
+        {!isLoading && drivers.map((driver) => (
+          <div key={driver.id} className="rounded-xl border border-slate-200 bg-white p-4">
+            {/* Card header: name + status badge */}
+            <div className="mb-3 flex items-start justify-between">
+              <div>
+                <p className="font-medium text-slate-800">{driver.name}</p>
+                <p className="mt-0.5 font-mono text-xs text-slate-500">
+                  {driver.employee_id}
+                </p>
+              </div>
+              <span className={cn(
+                'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                driver.is_active
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-slate-100 text-slate-500'
+              )}>
+                {driver.is_active ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+
+            {/* Card body: contact details */}
+            <div className="mb-4 space-y-1">
+              <p className="text-sm text-slate-600">
+                <span className="text-xs text-slate-400">Phone: </span>
+                {driver.phone || '—'}
+              </p>
+              <p className="text-sm text-slate-600">
+                <span className="text-xs text-slate-400">Email: </span>
+                {driver.email || '—'}
+              </p>
+              <p className="text-sm text-slate-500">
+                <span className="text-xs text-slate-400">Last active: </span>
+                {fmtDate(driver.last_active_at)}
+              </p>
+            </div>
+
+            {/* Card footer: action buttons */}
+            <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
+              <button
+                type="button"
+                onClick={() => openEditDriver(driver)}
+                aria-label={`Edit driver ${driver.name}`}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => openResetPassword(driver)}
+                aria-label={`Reset password for ${driver.name}`}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
+              >
+                <KeyRound className="h-3.5 w-3.5" />
+                Reset
+              </button>
+              {driver.is_active ? (
+                <button
+                  type="button"
+                  onClick={() => openDeactivate(driver)}
+                  aria-label={`Deactivate driver ${driver.name}`}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300"
+                >
+                  <PowerOff className="h-3.5 w-3.5" />
+                  Deactivate
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openReactivate(driver)}
+                  aria-label={`Reactivate driver ${driver.name}`}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-green-200 px-3 py-2 text-xs font-medium text-green-600 hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-300"
+                >
+                  <Power className="h-3.5 w-3.5" />
+                  Reactivate
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* Pagination */}
       {pagination && pagination.total_pages > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"
             onClick={() => goToPage(currentPage - 1)}
