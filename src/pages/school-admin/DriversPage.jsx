@@ -442,11 +442,12 @@ function ResetPasswordModal({ modal, onClose }) {
     e.preventDefault();
     setFormError(null);
 
-    if (!newPassword.trim()) {
+    // Passwords are opaque — never trim, validate and send raw value
+    if (!newPassword) {
       setFormError('New password is required.');
       return;
     }
-    if (newPassword.trim().length < 8) {
+    if (newPassword.length < 8) {
       setFormError('Password must be at least 8 characters.');
       return;
     }
@@ -457,7 +458,7 @@ function ResetPasswordModal({ modal, onClose }) {
 
     setResetting(true);
     try {
-      await resetDriverPassword(modal.driverId, newPassword.trim());
+      await resetDriverPassword(modal.driverId, newPassword);
       onClose();
     } catch (err) {
       setFormError(err.response?.data?.message || 'Failed to reset password');
@@ -668,10 +669,8 @@ export default function DriversPage() {
 
   /* ── Data fetching ── */
 
-  // Fetches drivers — AbortController created first so cleanup always works
-  const fetchDrivers = useCallback(async (page, search, status) => {
-    const controller = new AbortController();
-
+  // Fetches drivers — accepts an optional signal so callers can cancel
+  const fetchDrivers = useCallback(async (page, search, status, signal) => {
     if (!hasFetchedRef.current) {
       setIsLoading(true);
     } else {
@@ -682,9 +681,9 @@ export default function DriversPage() {
     try {
       const data = await listDrivers(
         { page, limit: PAGE_LIMIT, search: search || undefined, status },
-        controller.signal
+        signal
       );
-      if (!controller.signal.aborted) {
+      if (!signal?.aborted) {
         const totalPages = data.pagination?.total_pages || 1;
         if (page > totalPages) setCurrentPage(totalPages);
         setDrivers(data.drivers || []);
@@ -695,23 +694,20 @@ export default function DriversPage() {
       if (err.name === 'CanceledError' || err.name === 'AbortError') return;
       setError(err.response?.data?.message || 'Failed to load drivers');
     } finally {
-      if (!controller.signal.aborted) {
+      if (!signal?.aborted) {
         setIsLoading(false);
         setIsRefetching(false);
       }
     }
-
-    return controller;
   }, []);
 
   // Single fetch trigger — handlers only update state, this effect fetches
   useEffect(() => {
-    let controller;
-    const run = async () => {
-      controller = await fetchDrivers(currentPage, apiSearch, statusFilter);
-    };
-    run();
-    return () => controller?.abort();
+    // Create controller synchronously so cleanup can abort
+    // immediately regardless of async function progress
+    const controller = new AbortController();
+    fetchDrivers(currentPage, apiSearch, statusFilter, controller.signal);
+    return () => controller.abort();
   }, [currentPage, apiSearch, statusFilter, fetchDrivers]);
 
   // Cancel pending debounce timer on unmount

@@ -42,10 +42,13 @@ function getMinutesAgoText(isoTimestamp) {
  * @param {*} val
  * @returns {boolean}
  */
+// Guard nullish and empty values before coercion —
+// Number(null/''/'false') === 0 which passes range checks
 // Coerce to number first — PostgreSQL NUMERIC returns as string
 // Validate finite number and geographic range
 // isLat=true enforces -90..90, isLat=false enforces -180..180
 function isValidCoord(val, isLat = false) {
+  if (val === null || val === undefined || val === '') return false;
   const num = Number(val);
   if (!Number.isFinite(num)) return false;
   if (isLat) return num >= -90 && num <= 90;

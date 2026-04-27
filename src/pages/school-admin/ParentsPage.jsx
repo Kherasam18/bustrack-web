@@ -178,10 +178,16 @@ function Modal({ open, onClose, title, disableClose = false, children }) {
 function DefaultPasswordBanner({ password, onDismiss }) {
   const [copied, setCopied] = useState(false);
 
-  function handleCopy() {
-    navigator.clipboard.writeText(password);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  // Only show Copied! when clipboard write actually succeeded
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(password);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard denied — password visible for manual copy
+      setCopied(false);
+    }
   }
 
   return (
@@ -628,10 +634,8 @@ export default function ParentsPage() {
 
   /* ── Data fetching ── */
 
-  // Fetches parents — AbortController created first so cleanup always works
-  const fetchParents = useCallback(async (page, search, status) => {
-    const controller = new AbortController();
-
+  // Fetches parents — accepts an optional signal so callers can cancel
+  const fetchParents = useCallback(async (page, search, status, signal) => {
     if (!hasFetchedRef.current) {
       setIsLoading(true);
     } else {
@@ -642,9 +646,9 @@ export default function ParentsPage() {
     try {
       const data = await listParents(
         { page, limit: PAGE_LIMIT, search: search || undefined, status },
-        controller.signal
+        signal
       );
-      if (!controller.signal.aborted) {
+      if (!signal?.aborted) {
         const totalPages = data.pagination?.total_pages || 1;
         if (page > totalPages) setCurrentPage(totalPages);
         setParents(data.parents || []);
@@ -655,23 +659,20 @@ export default function ParentsPage() {
       if (err.name === 'CanceledError' || err.name === 'AbortError') return;
       setError(err.response?.data?.message || 'Failed to load parents');
     } finally {
-      if (!controller.signal.aborted) {
+      if (!signal?.aborted) {
         setIsLoading(false);
         setIsRefetching(false);
       }
     }
-
-    return controller;
   }, []);
 
   // Single fetch trigger — handlers only update state, this effect fetches
   useEffect(() => {
-    let controller;
-    const run = async () => {
-      controller = await fetchParents(currentPage, apiSearch, statusFilter);
-    };
-    run();
-    return () => controller?.abort();
+    // Create controller synchronously so cleanup can abort
+    // immediately regardless of async function progress
+    const controller = new AbortController();
+    fetchParents(currentPage, apiSearch, statusFilter, controller.signal);
+    return () => controller.abort();
   }, [currentPage, apiSearch, statusFilter, fetchParents]);
 
   // Cancel pending debounce timer on unmount

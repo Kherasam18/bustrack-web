@@ -336,16 +336,24 @@ function RouteModal({ modal, onClose, onSuccess }) {
   const [departure, setDeparture] = useState('');
   const [drivers, setDrivers] = useState([]);
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
+  const [driversWarning, setDriversWarning] = useState(null);
   const [selectedDriverId, setSelectedDriverId] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState(null);
+  const driversAbortRef = useRef(null);
 
   // Re-initialise form fields whenever the modal opens or its data changes
   useEffect(() => {
     if (!modal.open) {
+      // Abort any in-flight driver fetch when modal closes
+      if (driversAbortRef.current) {
+        driversAbortRef.current.abort();
+        driversAbortRef.current = null;
+      }
       setSelectedDriverId('');
       setDrivers([]);
       setIsLoadingDrivers(false);
+      setDriversWarning(null);
       return;
     }
     if (isEdit && modal.route) {
@@ -361,16 +369,32 @@ function RouteModal({ modal, onClose, onSuccess }) {
     setFormError(null);
 
     // Fetch active drivers for the dropdown whenever modal opens
+    const controller = new AbortController();
+    driversAbortRef.current = controller;
+
     async function loadDrivers() {
       setIsLoadingDrivers(true);
       try {
-        const data = await listDrivers({ status: 'active', limit: 100 });
-        setDrivers(data.drivers || []);
-      } catch (_) {
-        // Non-critical — dropdown shows empty, user can still save
-        setDrivers([]);
+        const data = await listDrivers(
+          { status: 'active', limit: 100 },
+          controller.signal
+        );
+        if (!controller.signal.aborted) {
+          setDrivers(data.drivers || []);
+          // Warn if list was truncated — schools with > 100 drivers
+          if (data.pagination?.total > (data.drivers?.length || 0)) {
+            setDriversWarning(
+              `Showing first ${data.drivers?.length} of ${data.pagination.total} drivers. Search by name in the Drivers page to find others.`
+            );
+          } else {
+            setDriversWarning(null);
+          }
+        }
+      } catch (err) {
+        if (err.name === 'CanceledError' || err.name === 'AbortError') return;
+        if (!controller.signal.aborted) setDrivers([]);
       } finally {
-        setIsLoadingDrivers(false);
+        if (!controller.signal.aborted) setIsLoadingDrivers(false);
       }
     }
     loadDrivers();
@@ -493,6 +517,9 @@ function RouteModal({ modal, onClose, onSuccess }) {
           </select>
           {isLoadingDrivers && (
             <p className="mt-1 text-xs text-slate-400">Loading drivers...</p>
+          )}
+          {driversWarning && (
+            <p className="mt-1 text-xs text-amber-600">{driversWarning}</p>
           )}
         </div>
 

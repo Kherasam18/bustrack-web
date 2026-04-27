@@ -52,10 +52,10 @@ const DELIVERY_CONFIG = {
  * Utility helpers
  * ────────────────────────────────────────────────────────── */
 
-// Formats ISO timestamp as HH:MM:SS for today's log
-function fmtTime(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso);
+// Formats ISO timestamp or Date as HH:MM:SS
+function fmtTime(input) {
+  if (!input) return '—';
+  const d = input instanceof Date ? input : new Date(input);
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
   const ss = String(d.getSeconds()).padStart(2, '0');
@@ -75,20 +75,21 @@ export default function NotificationsPage() {
   const [isRefetching, setIsRefetching] = useState(false);
   const [error, setError] = useState(null);
   const [journeyIdFilter, setJourneyIdFilter] = useState('');
+  // The filter confirmed by clicking Apply — distinct from
+  // the live input value so polling uses what was applied
+  const [appliedJourneyId, setAppliedJourneyId] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
 
   /* ── Refs ── */
   const hasFetchedRef = useRef(false);
   const pollIntervalRef = useRef(null);
   const abortControllerRef = useRef(null);
-  // Keeps journeyIdFilter in sync for the poll interval callback
-  // so it always reads the current value without stale closure
-  const journeyIdFilterRef = useRef('');
+  const appliedJourneyIdRef = useRef('');
 
-  // Sync ref with state
+  // Sync ref with applied (not live) filter for poll callback
   useEffect(() => {
-    journeyIdFilterRef.current = journeyIdFilter;
-  }, [journeyIdFilter]);
+    appliedJourneyIdRef.current = appliedJourneyId;
+  }, [appliedJourneyId]);
 
   /* ── Data fetching ── */
 
@@ -132,11 +133,11 @@ export default function NotificationsPage() {
 
   // Initial fetch + 60-second poll interval
   useEffect(() => {
-    fetchNotifications(journeyIdFilterRef.current);
+    fetchNotifications(appliedJourneyIdRef.current);
 
-    // Start polling — reads current filter from ref to avoid stale closure
+    // Start polling — reads applied filter from ref to avoid stale closure
     pollIntervalRef.current = setInterval(() => {
-      fetchNotifications(journeyIdFilterRef.current);
+      fetchNotifications(appliedJourneyIdRef.current);
     }, POLL_INTERVAL_MS);
 
     return () => {
@@ -154,18 +155,20 @@ export default function NotificationsPage() {
 
   // Fetches with the current journey ID filter applied
   function handleApplyFilter() {
+    setAppliedJourneyId(journeyIdFilter);
     fetchNotifications(journeyIdFilter);
   }
 
   // Clears filter and fetches unfiltered results
   function handleClearFilter() {
     setJourneyIdFilter('');
+    setAppliedJourneyId('');
     fetchNotifications('');
   }
 
-  // Manual refresh with current filter
+  // Use applied filter — not the live input value
   function handleManualRefresh() {
-    fetchNotifications(journeyIdFilter);
+    fetchNotifications(appliedJourneyId);
   }
 
   /* ── Render ── */
@@ -200,7 +203,7 @@ export default function NotificationsPage() {
       {/* Last updated timestamp */}
       {lastUpdated && (
         <p className="mb-4 text-xs text-slate-400">
-          Last updated: {fmtTime(lastUpdated.toISOString())}
+          Last updated: {fmtTime(lastUpdated)}
         </p>
       )}
 
@@ -307,12 +310,11 @@ export default function NotificationsPage() {
                     <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
                       <Bell className="h-6 w-6 text-slate-400" />
                     </div>
-                    <p className="text-sm text-slate-500">No notifications sent today</p>
-                    {journeyIdFilter && (
-                      <p className="mt-1 text-xs text-slate-400">
-                        No notifications found for this journey ID.
-                      </p>
-                    )}
+                    <p className="text-sm text-slate-500">
+                      {appliedJourneyId
+                        ? 'No notifications found for this journey ID.'
+                        : 'No notifications sent today'}
+                    </p>
                   </div>
                 </td>
               </tr>
@@ -412,7 +414,7 @@ export default function NotificationsPage() {
                 <Bell className="h-6 w-6 text-slate-400" />
               </div>
               <p className="text-sm text-slate-500">
-                {journeyIdFilter
+                {appliedJourneyId
                   ? 'No notifications found for this journey ID.'
                   : 'No notifications sent today'}
               </p>
