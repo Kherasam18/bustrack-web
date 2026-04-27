@@ -151,7 +151,7 @@ function JourneyCard({ title, journey }) {
       {/* Header with title and status badges */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-semibold text-slate-800">{title}</h3>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Journey status badge */}
           <span
             className={cn(
@@ -337,8 +337,13 @@ export default function BusDetailPage() {
 
   // Determine which journey provides the map data
   const activeJourney = bus ? selectActiveJourney(bus.pickup, bus.drop) : null;
-  const mapLat = activeJourney?.last_known_lat ?? null;
-  const mapLng = activeJourney?.last_known_lng ?? null;
+  // Coerce NUMERIC string to number for LiveMap — null stays null
+  const mapLat = activeJourney?.last_known_lat != null
+    ? parseFloat(activeJourney.last_known_lat)
+    : null;
+  const mapLng = activeJourney?.last_known_lng != null
+    ? parseFloat(activeJourney.last_known_lng)
+    : null;
   const mapTrackingStatus = activeJourney?.tracking_status ?? null;
   const mapLastLocationAt = activeJourney?.last_location_at ?? null;
 
@@ -381,7 +386,7 @@ export default function BusDetailPage() {
           {/* Bus info header card */}
           <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6">
             <p className="text-2xl font-bold text-slate-900">{bus.bus_number}</p>
-            <div className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
+            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
               <InfoStat label="Driver" value={bus.driver_name} icon={UserCheck} />
               <InfoStat label="Route" value={bus.route_name} icon={Route} />
               <InfoStat label="Capacity" value={bus.capacity} icon={Users} />
@@ -420,9 +425,14 @@ export default function BusDetailPage() {
                 )}
               </p>
 
+              {/* Mobile scroll hint */}
+              <p className="mb-2 text-xs text-slate-400 md:hidden">
+                Scroll horizontally to see all columns
+              </p>
+
               {/* Location log table */}
               <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[500px] text-sm">
                   <thead className="bg-slate-50 text-left text-slate-600">
                     <tr>
                       <th className="px-4 py-2 font-medium">#</th>
@@ -447,10 +457,16 @@ export default function BusDetailPage() {
                           {formatTimeFromISO(point.recorded_at)}
                         </td>
                         <td className="px-4 py-2 font-mono text-slate-700">
-                          {typeof point.lat === 'number' ? point.lat.toFixed(6) : '—'}
+                          {/* Use parseFloat — PostgreSQL NUMERIC returns as string not number */}
+                          {!Number.isNaN(parseFloat(point.lat))
+                            ? parseFloat(point.lat).toFixed(6)
+                            : '—'}
                         </td>
                         <td className="px-4 py-2 font-mono text-slate-700">
-                          {typeof point.lng === 'number' ? point.lng.toFixed(6) : '—'}
+                          {/* Use parseFloat — PostgreSQL NUMERIC returns as string not number */}
+                          {!Number.isNaN(parseFloat(point.lng))
+                            ? parseFloat(point.lng).toFixed(6)
+                            : '—'}
                         </td>
                         <td className="px-4 py-2 text-slate-700">
                           {point.speed !== null && point.speed !== undefined

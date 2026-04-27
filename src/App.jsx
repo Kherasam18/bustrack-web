@@ -21,6 +21,7 @@ import BusesPage from './pages/school-admin/BusesPage';
 import BusDetailPage from './pages/school-admin/BusDetailPage';
 import StudentsPage from './pages/school-admin/StudentsPage';
 import DriversPage from './pages/school-admin/DriversPage';
+import ParentsPage from './pages/school-admin/ParentsPage';
 import NotificationsPage from './pages/school-admin/NotificationsPage';
 
 import AppShell from './components/layout/AppShell';
@@ -82,6 +83,7 @@ export default function App() {
             <Route path="/school-admin/buses/:id" element={<BusDetailPage />} />
             <Route path="/school-admin/students" element={<StudentsPage />} />
             <Route path="/school-admin/drivers" element={<DriversPage />} />
+            <Route path="/school-admin/parents" element={<ParentsPage />} />
             <Route path="/school-admin/notifications" element={<NotificationsPage />} />
           </Route>
         </Route>
