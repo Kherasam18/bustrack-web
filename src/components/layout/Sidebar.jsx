@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Bus,
   Users,
+  UsersRound,
   UserCheck,
   Bell,
   Building2,
@@ -29,7 +30,7 @@ const SCHOOL_ADMIN_LINKS = [
   { label: 'Buses', path: '/school-admin/buses', icon: Bus },
   { label: 'Students', path: '/school-admin/students', icon: Users },
   { label: 'Drivers', path: '/school-admin/drivers', icon: UserCheck },
-  { label: 'Parents', path: '/school-admin/parents', icon: Users },
+  { label: 'Parents', path: '/school-admin/parents', icon: UsersRound },
   { label: 'Notifications', path: '/school-admin/notifications', icon: Bell },
 ];
 

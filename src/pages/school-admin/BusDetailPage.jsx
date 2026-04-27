@@ -457,16 +457,18 @@ export default function BusDetailPage() {
                           {formatTimeFromISO(point.recorded_at)}
                         </td>
                         <td className="px-4 py-2 font-mono text-slate-700">
-                          {/* Use parseFloat — PostgreSQL NUMERIC returns as string not number */}
-                          {!Number.isNaN(parseFloat(point.lat))
-                            ? parseFloat(point.lat).toFixed(6)
-                            : '—'}
+                          {(() => {
+                            // Parse once — PostgreSQL NUMERIC returns as string
+                            const lat = parseFloat(point.lat);
+                            return Number.isNaN(lat) ? '—' : lat.toFixed(6);
+                          })()}
                         </td>
                         <td className="px-4 py-2 font-mono text-slate-700">
-                          {/* Use parseFloat — PostgreSQL NUMERIC returns as string not number */}
-                          {!Number.isNaN(parseFloat(point.lng))
-                            ? parseFloat(point.lng).toFixed(6)
-                            : '—'}
+                          {(() => {
+                            // Parse once — PostgreSQL NUMERIC returns as string
+                            const lng = parseFloat(point.lng);
+                            return Number.isNaN(lng) ? '—' : lng.toFixed(6);
+                          })()}
                         </td>
                         <td className="px-4 py-2 text-slate-700">
                           {point.speed !== null && point.speed !== undefined
