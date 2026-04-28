@@ -154,10 +154,11 @@ export default function SchoolDetailPage() {
       try {
         // Fetch school and admin in parallel
         const [schoolResult, adminResult] = await Promise.all([
-          getSchool(schoolId),
-          getSchoolAdmin(schoolId),
+          getSchool(schoolId, controller.signal),
+          getSchoolAdmin(schoolId, controller.signal),
         ]);
 
+        if (controller.signal.aborted) return;
         setSchool(schoolResult.school);
         setAdminData(adminResult);
       } catch (err) {
@@ -165,8 +166,9 @@ export default function SchoolDetailPage() {
         if (err.name === 'CanceledError' || err.name === 'AbortError') return;
         setError('Failed to load school details. Please try again.');
       } finally {
-        if (controller.signal.aborted) return;
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
         isFetchingRef.current = false;
       }
     }
@@ -489,10 +491,10 @@ export default function SchoolDetailPage() {
 
                 {/* Info block */}
                 <div>
-                  <p className="font-medium text-gray-900">{admin.name}</p>
-                  <p className="text-sm text-gray-500 mt-0.5">{admin.email}</p>
+                  <p className="font-medium text-black-900">{admin.name}</p>
+                  <p className="text-sm text-gray-800 mt-0.5">{admin.email}</p>
                   {admin.phone && (
-                    <p className="text-sm text-gray-500 mt-0.5">{admin.phone}</p>
+                    <p className="text-sm text-gray-800 mt-0.5">{admin.phone}</p>
                   )}
 
                   {/* Status pill */}
@@ -606,10 +608,15 @@ function AddAdminModal({ open, onClose, onSuccess, schoolId }) {
       onSuccess(data.admin);
     } catch (err) {
       const msg = err.response?.data?.message || '';
-      if (msg.includes('already exists')) {
+      const normalized = msg.toLowerCase();
+      if (normalized.includes('phone')) {
+        setGeneralError('That phone number is already in use in this school.');
+      } else if (normalized.includes('email')) {
+        setGeneralError('That email address is already in use in this school.');
+      } else if (normalized.includes('school admin already exists')) {
         setGeneralError('A School Admin already exists for this school.');
       } else {
-        setGeneralError('Failed to create admin. Please try again.');
+        setGeneralError(msg || 'Failed to create admin. Please try again.');
       }
     } finally {
       setSubmitting(false);
@@ -662,7 +669,7 @@ function AddAdminModal({ open, onClose, onSuccess, schoolId }) {
         {/* Phone */}
         <div>
           <label htmlFor="admin-phone"
-                 className="block text-sm font-medium text-gray-700 mb-1">
+            className="block text-sm font-medium text-gray-700 mb-1">
             Phone
           </label>
           <input

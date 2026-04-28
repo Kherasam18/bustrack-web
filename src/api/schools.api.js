@@ -44,23 +44,28 @@ export async function reactivateSchool(schoolId) {
 }
 
 // Fetches a single school with full detail and stats
-export async function getSchool(schoolId) {
+export async function getSchool(schoolId, signal) {
   if (!schoolId) throw new Error('schoolId is required');
-  const response = await api.get(`/api/schools/${schoolId}`);
+  const response = await api.get(`/api/schools/${schoolId}`, { signal });
   return response.data.data;
 }
 
 // Fetches the School Admin for a school (returns { admin: null } if none)
-export async function getSchoolAdmin(schoolId) {
+export async function getSchoolAdmin(schoolId, signal) {
   if (!schoolId) throw new Error('schoolId is required');
-  const response = await api.get(`/api/schools/${schoolId}/admin`);
+  const response = await api.get(`/api/schools/${schoolId}/admin`, { signal });
   return response.data.data;
 }
 
 // Creates a School Admin for a school
-export async function createSchoolAdmin(schoolId, { name, email, password }) {
+export async function createSchoolAdmin(schoolId, { name, email, phone, password }) {
   if (!schoolId) throw new Error('schoolId is required');
-  const response = await api.post(`/api/schools/${schoolId}/admin`, { name, email, password });
+  const response = await api.post(`/api/schools/${schoolId}/admin`, {
+    name,
+    email,
+    phone,
+    password,
+  });
   return response.data.data;
 }
 
