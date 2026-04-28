@@ -42,3 +42,48 @@ export async function reactivateSchool(schoolId) {
   const response = await api.put(`/api/schools/${schoolId}/reactivate`);
   return response.data.data;
 }
+
+// Fetches a single school with full detail and stats
+export async function getSchool(schoolId) {
+  if (!schoolId) throw new Error('schoolId is required');
+  const response = await api.get(`/api/schools/${schoolId}`);
+  return response.data.data;
+}
+
+// Fetches the School Admin for a school (returns { admin: null } if none)
+export async function getSchoolAdmin(schoolId) {
+  if (!schoolId) throw new Error('schoolId is required');
+  const response = await api.get(`/api/schools/${schoolId}/admin`);
+  return response.data.data;
+}
+
+// Creates a School Admin for a school
+export async function createSchoolAdmin(schoolId, { name, email, password }) {
+  if (!schoolId) throw new Error('schoolId is required');
+  const response = await api.post(`/api/schools/${schoolId}/admin`, { name, email, password });
+  return response.data.data;
+}
+
+// Resets School Admin password — Super Admin sets specific password
+export async function resetSchoolAdminPassword(schoolId, userId, { new_password }) {
+  if (!schoolId) throw new Error('schoolId is required');
+  if (!userId) throw new Error('userId is required');
+  const response = await api.post(`/api/schools/${schoolId}/admin/${userId}/reset-password`, { new_password });
+  return response.data.data;
+}
+
+// Deactivates a School Admin
+export async function deactivateSchoolAdmin(schoolId, userId) {
+  if (!schoolId) throw new Error('schoolId is required');
+  if (!userId) throw new Error('userId is required');
+  const response = await api.delete(`/api/schools/${schoolId}/admin/${userId}/deactivate`);
+  return response.data.data;
+}
+
+// Reactivates a School Admin
+export async function reactivateSchoolAdmin(schoolId, userId) {
+  if (!schoolId) throw new Error('schoolId is required');
+  if (!userId) throw new Error('userId is required');
+  const response = await api.put(`/api/schools/${schoolId}/admin/${userId}/reactivate`);
+  return response.data.data;
+}
