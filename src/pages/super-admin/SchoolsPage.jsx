@@ -572,9 +572,9 @@ export default function SchoolsPage() {
       </div>
 
       {/* ⑦ Pagination */}
-      {pagination !== null && pagination.total_pages > 1 && (
+      {pagination !== null && pagination.totalPages > 1 && (
         <div className="flex justify-center items-center gap-1 mt-6">
-          {getVisiblePages(currentPage, pagination.total_pages).map((item, index) =>
+          {getVisiblePages(currentPage, pagination.totalPages).map((item, index) =>
             item === '...' ? (
               <span key={`ellipsis-${index}`} className="px-3 py-1 text-gray-400 text-sm">...</span>
             ) : (
