@@ -24,18 +24,21 @@ export async function createSchool(data) {
 
 // Updates an existing school (name, address, city, state — never code)
 export async function updateSchool(schoolId, data) {
+  if (!schoolId) throw new Error('schoolId is required');
   const response = await api.patch(`/api/schools/${schoolId}`, data);
   return response.data.data;
 }
 
 // Deactivates a school and all its associated users
 export async function deactivateSchool(schoolId) {
+  if (!schoolId) throw new Error('schoolId is required');
   const response = await api.delete(`/api/schools/${schoolId}/deactivate`);
   return response.data.data;
 }
 
 // Reactivates an inactive school (users are NOT automatically reactivated)
 export async function reactivateSchool(schoolId) {
+  if (!schoolId) throw new Error('schoolId is required');
   const response = await api.put(`/api/schools/${schoolId}/reactivate`);
   return response.data.data;
 }

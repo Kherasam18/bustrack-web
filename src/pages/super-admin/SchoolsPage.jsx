@@ -260,6 +260,7 @@ export default function SchoolsPage() {
         if (err.name === 'CanceledError' || err.name === 'AbortError') return;
         setError('Failed to load schools. Please try again.');
       } finally {
+        if (controller.signal.aborted) return;
         setIsLoading(false);
         setIsRefetching(false);
         isFetchingRef.current = false;
@@ -346,6 +347,13 @@ export default function SchoolsPage() {
   // Called by ConfirmModal on deactivate success — flip is_active to false
   function handleDeactivateSuccess(schoolId) {
     closeModal();
+    // If filtering by active only, deactivated row no longer belongs —
+    // refetch instead of leaving a stale row visible
+    if (statusFilter === 'active') {
+      setRefreshKey((prev) => prev + 1);
+      return;
+    }
+    // Otherwise flip is_active in place
     setSchools((prev) =>
       prev.map((s) => (s.id === schoolId ? { ...s, is_active: false } : s))
     );
@@ -354,6 +362,13 @@ export default function SchoolsPage() {
   // Called by ConfirmModal on reactivate success — flip is_active to true
   function handleReactivateSuccess(updatedSchool) {
     closeModal();
+    // If filtering by inactive only, reactivated row no longer belongs —
+    // refetch instead of leaving a stale row visible
+    if (statusFilter === 'inactive') {
+      setRefreshKey((prev) => prev + 1);
+      return;
+    }
+    // Otherwise flip is_active in place
     setSchools((prev) =>
       prev.map((s) => (s.id === updatedSchool.id ? { ...s, is_active: true } : s))
     );
