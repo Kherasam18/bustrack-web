@@ -260,7 +260,6 @@ export default function SchoolsPage() {
         if (err.name === 'CanceledError' || err.name === 'AbortError') return;
         setError('Failed to load schools. Please try again.');
       } finally {
-        if (controller.signal.aborted) return;
         setIsLoading(false);
         setIsRefetching(false);
         isFetchingRef.current = false;
@@ -324,11 +323,13 @@ export default function SchoolsPage() {
   function handleAddSuccess() {
     closeModal();
     if (currentPage === 1 && apiSearch === '') {
+      setStatusFilter('all');
       setRefreshKey((prev) => prev + 1);
     } else {
       setCurrentPage(1);
       setApiSearch('');
       setInputValue('');
+      setStatusFilter('all');
     }
   }
 
@@ -338,7 +339,7 @@ export default function SchoolsPage() {
     setSchools((prev) =>
       prev.map((s) =>
         s.id === updatedSchool.id
-          ? { ...s, name: updatedSchool.name, city: updatedSchool.city, state: updatedSchool.state }
+          ? { ...s, name: updatedSchool.name, city: updatedSchool.city, state: updatedSchool.state, address: updatedSchool.address }
           : s
       )
     );
@@ -347,13 +348,6 @@ export default function SchoolsPage() {
   // Called by ConfirmModal on deactivate success — flip is_active to false
   function handleDeactivateSuccess(schoolId) {
     closeModal();
-    // If filtering by active only, deactivated row no longer belongs —
-    // refetch instead of leaving a stale row visible
-    if (statusFilter === 'active') {
-      setRefreshKey((prev) => prev + 1);
-      return;
-    }
-    // Otherwise flip is_active in place
     setSchools((prev) =>
       prev.map((s) => (s.id === schoolId ? { ...s, is_active: false } : s))
     );
@@ -362,13 +356,6 @@ export default function SchoolsPage() {
   // Called by ConfirmModal on reactivate success — flip is_active to true
   function handleReactivateSuccess(updatedSchool) {
     closeModal();
-    // If filtering by inactive only, reactivated row no longer belongs —
-    // refetch instead of leaving a stale row visible
-    if (statusFilter === 'inactive') {
-      setRefreshKey((prev) => prev + 1);
-      return;
-    }
-    // Otherwise flip is_active in place
     setSchools((prev) =>
       prev.map((s) => (s.id === updatedSchool.id ? { ...s, is_active: true } : s))
     );
@@ -492,7 +479,9 @@ export default function SchoolsPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500">
-                  {new Date(school.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  {school.created_at
+                    ? new Date(school.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : '—'}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-2">
@@ -555,7 +544,9 @@ export default function SchoolsPage() {
             <div className="flex gap-4 text-xs text-gray-500 mb-3">
               <span>{school.city || '—'}</span>
               <span>{school.state || '—'}</span>
-              <span>{new Date(school.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+              <span>{school.created_at
+                ? new Date(school.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                : '—'}</span>
             </div>
 
             {/* Card actions */}
@@ -698,7 +689,13 @@ function AddSchoolModal({ open, onClose, onSuccess }) {
 
   return (
     <Modal open={open} onClose={onClose} title="Add School" disableClose={submitting}>
-      <div className="space-y-4">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSubmit();
+        }}
+        className="space-y-4"
+      >
         {/* School Name */}
         <div>
           <label htmlFor="add-school-name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -798,8 +795,7 @@ function AddSchoolModal({ open, onClose, onSuccess }) {
             Cancel
           </button>
           <button
-            type="button"
-            onClick={handleSubmit}
+            type="submit"
             disabled={submitting}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -813,7 +809,7 @@ function AddSchoolModal({ open, onClose, onSuccess }) {
             )}
           </button>
         </div>
-      </div>
+      </form>
     </Modal>
   );
 }
@@ -879,7 +875,13 @@ function EditSchoolModal({ open, onClose, onSuccess, school }) {
 
   return (
     <Modal open={open} onClose={onClose} title="Edit School" disableClose={submitting}>
-      <div className="space-y-4">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSubmit();
+        }}
+        className="space-y-4"
+      >
         {/* Read-only school code */}
         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
           <p className="text-xs text-gray-500 mb-1">School Code (cannot be changed)</p>
@@ -966,8 +968,7 @@ function EditSchoolModal({ open, onClose, onSuccess, school }) {
             Cancel
           </button>
           <button
-            type="button"
-            onClick={handleSubmit}
+            type="submit"
             disabled={submitting}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -981,7 +982,7 @@ function EditSchoolModal({ open, onClose, onSuccess, school }) {
             )}
           </button>
         </div>
-      </div>
+      </form>
     </Modal>
   );
 }
