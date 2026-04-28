@@ -1597,7 +1597,7 @@ export default function StudentsPage() {
       </div>
 
       {/* ── Pagination ─────────────────────────────────── */}
-      {pagination && pagination.total_pages > 1 && (
+      {pagination && pagination.totalPages > 1 && (
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"
@@ -1608,7 +1608,7 @@ export default function StudentsPage() {
             Previous
           </button>
 
-          {getVisiblePages(currentPage, pagination.total_pages).map((item, idx) =>
+          {getVisiblePages(currentPage, pagination.totalPages).map((item, idx) =>
             item === '...' ? (
               <span key={`ellipsis-${idx}`} className="px-2 py-1.5 text-sm text-slate-400 select-none">
                 ...
@@ -1633,7 +1633,7 @@ export default function StudentsPage() {
           <button
             type="button"
             onClick={() => goToPage(currentPage + 1)}
-            disabled={currentPage >= pagination.total_pages}
+            disabled={currentPage >= pagination.totalPages}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Next

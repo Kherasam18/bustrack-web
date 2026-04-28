@@ -900,119 +900,119 @@ export default function DriversPage() {
 
       {/* Drivers table — hidden on mobile, visible on md+ */}
       <div className="hidden md:block">
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-slate-600">
-            <tr>
-              <th className="px-4 py-3 font-medium">Name</th>
-              <th className="px-4 py-3 font-medium">Employee ID</th>
-              <th className="px-4 py-3 font-medium">Phone</th>
-              <th className="px-4 py-3 font-medium">Email</th>
-              <th className="px-4 py-3 font-medium">Last Active</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-
-            {/* Loading skeleton */}
-            {isLoading && Array.from({ length: 6 }).map((_, i) => (
-              <tr key={i}>
-                {Array.from({ length: COL_COUNT }).map((__, j) => (
-                  <td key={j} className="px-4 py-3">
-                    <div className="h-4 w-20 animate-pulse rounded bg-slate-200" />
-                  </td>
-                ))}
-              </tr>
-            ))}
-
-            {/* Empty state */}
-            {!isLoading && !error && drivers.length === 0 && (
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-left text-slate-600">
               <tr>
-                <td colSpan={COL_COUNT} className="px-4 py-16 text-center">
-                  <div className="flex flex-col items-center">
-                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                      <UserCheck className="h-6 w-6 text-slate-400" />
+                <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Employee ID</th>
+                <th className="px-4 py-3 font-medium">Phone</th>
+                <th className="px-4 py-3 font-medium">Email</th>
+                <th className="px-4 py-3 font-medium">Last Active</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+
+              {/* Loading skeleton */}
+              {isLoading && Array.from({ length: 6 }).map((_, i) => (
+                <tr key={i}>
+                  {Array.from({ length: COL_COUNT }).map((__, j) => (
+                    <td key={j} className="px-4 py-3">
+                      <div className="h-4 w-20 animate-pulse rounded bg-slate-200" />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+
+              {/* Empty state */}
+              {!isLoading && !error && drivers.length === 0 && (
+                <tr>
+                  <td colSpan={COL_COUNT} className="px-4 py-16 text-center">
+                    <div className="flex flex-col items-center">
+                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                        <UserCheck className="h-6 w-6 text-slate-400" />
+                      </div>
+                      <p className="text-sm text-slate-500">No drivers found</p>
                     </div>
-                    <p className="text-sm text-slate-500">No drivers found</p>
-                  </div>
-                </td>
-              </tr>
-            )}
+                  </td>
+                </tr>
+              )}
 
-            {/* Driver rows */}
-            {!isLoading && drivers.map((driver) => (
-              <tr key={driver.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3 font-medium text-slate-800">
-                  {driver.name}
-                </td>
-                <td className="px-4 py-3 font-mono text-xs text-slate-600">
-                  {driver.employee_id}
-                </td>
-                <td className="px-4 py-3 text-slate-600">
-                  {driver.phone || <span className="text-slate-400">—</span>}
-                </td>
-                <td className="px-4 py-3 text-slate-600">
-                  {driver.email || <span className="text-slate-400">—</span>}
-                </td>
-                <td className="px-4 py-3 text-sm text-slate-500">
-                  {fmtDate(driver.last_active_at)}
-                </td>
-                <td className="px-4 py-3">
-                  <span className={cn(
-                    'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                    driver.is_active
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-slate-100 text-slate-500'
-                  )}>
-                    {driver.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-1">
-                    <button
-                      type="button"
-                      onClick={() => openEditDriver(driver)}
-                      aria-label={`Edit driver ${driver.name}`}
-                      className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openResetPassword(driver)}
-                      aria-label={`Reset password for ${driver.name}`}
-                      className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"
-                    >
-                      <KeyRound className="h-4 w-4" />
-                    </button>
-                    {driver.is_active ? (
+              {/* Driver rows */}
+              {!isLoading && drivers.map((driver) => (
+                <tr key={driver.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 font-medium text-slate-800">
+                    {driver.name}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                    {driver.employee_id}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {driver.phone || <span className="text-slate-400">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {driver.email || <span className="text-slate-400">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-slate-500">
+                    {fmtDate(driver.last_active_at)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={cn(
+                      'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                      driver.is_active
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-slate-100 text-slate-500'
+                    )}>
+                      {driver.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1">
                       <button
                         type="button"
-                        onClick={() => openDeactivate(driver)}
-                        aria-label={`Deactivate driver ${driver.name}`}
-                        className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-300"
+                        onClick={() => openEditDriver(driver)}
+                        aria-label={`Edit driver ${driver.name}`}
+                        className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"
                       >
-                        <PowerOff className="h-4 w-4" />
+                        <Pencil className="h-4 w-4" />
                       </button>
-                    ) : (
                       <button
                         type="button"
-                        onClick={() => openReactivate(driver)}
-                        aria-label={`Reactivate driver ${driver.name}`}
-                        className="rounded p-1.5 text-slate-400 hover:bg-green-50 hover:text-green-600 focus:outline-none focus:ring-2 focus:ring-green-300"
+                        onClick={() => openResetPassword(driver)}
+                        aria-label={`Reset password for ${driver.name}`}
+                        className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"
                       >
-                        <Power className="h-4 w-4" />
+                        <KeyRound className="h-4 w-4" />
                       </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
+                      {driver.is_active ? (
+                        <button
+                          type="button"
+                          onClick={() => openDeactivate(driver)}
+                          aria-label={`Deactivate driver ${driver.name}`}
+                          className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-300"
+                        >
+                          <PowerOff className="h-4 w-4" />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openReactivate(driver)}
+                          aria-label={`Reactivate driver ${driver.name}`}
+                          className="rounded p-1.5 text-slate-400 hover:bg-green-50 hover:text-green-600 focus:outline-none focus:ring-2 focus:ring-green-300"
+                        >
+                          <Power className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
 
-          </tbody>
-        </table>
-      </div>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Mobile card list — visible on mobile, hidden on md+ */}
@@ -1122,7 +1122,7 @@ export default function DriversPage() {
       </div>
 
       {/* Pagination */}
-      {pagination && pagination.total_pages > 1 && (
+      {pagination && pagination.totalPages > 1 && (
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"
@@ -1132,7 +1132,7 @@ export default function DriversPage() {
           >
             Previous
           </button>
-          {getVisiblePages(currentPage, pagination.total_pages).map((item, idx) =>
+          {getVisiblePages(currentPage, pagination.totalPages).map((item, idx) =>
             item === '...' ? (
               <span key={`ellipsis-${idx}`} className="select-none px-2 py-1.5 text-sm text-slate-400">
                 ...
@@ -1156,7 +1156,7 @@ export default function DriversPage() {
           <button
             type="button"
             onClick={() => goToPage(currentPage + 1)}
-            disabled={currentPage >= pagination.total_pages}
+            disabled={currentPage >= pagination.totalPages}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Next

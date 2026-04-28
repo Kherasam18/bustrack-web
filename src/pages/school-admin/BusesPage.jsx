@@ -2068,186 +2068,186 @@ export default function BusesPage() {
 
       {/* ── Bus table — hidden on mobile, visible on md+ ── */}
       <div className="hidden md:block">
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-slate-600">
-            <tr>
-              <th className="px-4 py-3 font-medium">Bus Number</th>
-              <th className="px-4 py-3 font-medium">Route</th>
-              <th className="px-4 py-3 font-medium">Departure</th>
-              <th className="px-4 py-3 font-medium">Driver</th>
-              <th className="px-4 py-3 font-medium">Students</th>
-              <th className="px-4 py-3 font-medium">Seats</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {/* Loading skeleton */}
-            {isLoading &&
-              Array.from({ length: 6 }).map((_, i) => (
-                <tr key={i}>
-                  {Array.from({ length: COL_COUNT }).map((__, j) => (
-                    <td key={j} className="px-4 py-3">
-                      <div className="h-4 w-20 animate-pulse rounded bg-slate-200" />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-
-            {/* Empty state */}
-            {!isLoading && !error && buses.length === 0 && (
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-left text-slate-600">
               <tr>
-                <td colSpan={COL_COUNT} className="px-4 py-16 text-center">
-                  <div className="flex flex-col items-center">
-                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                      <Bus className="h-6 w-6 text-slate-400" />
-                    </div>
-                    <p className="text-sm text-slate-500">No buses found</p>
-                  </div>
-                </td>
+                <th className="px-4 py-3 font-medium">Bus Number</th>
+                <th className="px-4 py-3 font-medium">Route</th>
+                <th className="px-4 py-3 font-medium">Departure</th>
+                <th className="px-4 py-3 font-medium">Driver</th>
+                <th className="px-4 py-3 font-medium">Students</th>
+                <th className="px-4 py-3 font-medium">Seats</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium text-right">Actions</th>
               </tr>
-            )}
-
-            {/* Bus rows */}
-            {!isLoading &&
-              buses.map((bus) => {
-                const isExpanded = expandedBusId === bus.id;
-                const seatBadge = SEAT_BADGE[bus.seat_status] || SEAT_BADGE.AVAILABLE;
-
-                return (
-                  <Fragment key={bus.id}>
-                    <tr className="hover:bg-slate-50">
-                      {/* Bus number */}
-                      <td className="px-4 py-3 font-medium text-slate-800">
-                        {bus.bus_number}
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {/* Loading skeleton */}
+              {isLoading &&
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i}>
+                    {Array.from({ length: COL_COUNT }).map((__, j) => (
+                      <td key={j} className="px-4 py-3">
+                        <div className="h-4 w-20 animate-pulse rounded bg-slate-200" />
                       </td>
+                    ))}
+                  </tr>
+                ))}
 
-                      {/* Route name */}
-                      <td className="px-4 py-3 text-slate-600">
-                        {bus.route_name || <span className="text-slate-400">—</span>}
-                      </td>
+              {/* Empty state */}
+              {!isLoading && !error && buses.length === 0 && (
+                <tr>
+                  <td colSpan={COL_COUNT} className="px-4 py-16 text-center">
+                    <div className="flex flex-col items-center">
+                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                        <Bus className="h-6 w-6 text-slate-400" />
+                      </div>
+                      <p className="text-sm text-slate-500">No buses found</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
 
-                      {/* Departure */}
-                      <td className="px-4 py-3 text-slate-600">
-                        {fmtTime(bus.scheduled_departure)}
-                      </td>
+              {/* Bus rows */}
+              {!isLoading &&
+                buses.map((bus) => {
+                  const isExpanded = expandedBusId === bus.id;
+                  const seatBadge = SEAT_BADGE[bus.seat_status] || SEAT_BADGE.AVAILABLE;
 
-                      {/* Driver */}
-                      <td className="px-4 py-3 text-slate-600">
-                        {bus.default_driver_name || <span className="text-slate-400">—</span>}
-                      </td>
+                  return (
+                    <Fragment key={bus.id}>
+                      <tr className="hover:bg-slate-50">
+                        {/* Bus number */}
+                        <td className="px-4 py-3 font-medium text-slate-800">
+                          {bus.bus_number}
+                        </td>
 
-                      {/* Students */}
-                      <td className="px-4 py-3 text-slate-600">
-                        {bus.student_count}/{bus.capacity}
-                      </td>
+                        {/* Route name */}
+                        <td className="px-4 py-3 text-slate-600">
+                          {bus.route_name || <span className="text-slate-400">—</span>}
+                        </td>
 
-                      {/* Seats badge */}
-                      <td className="px-4 py-3">
-                        <span
-                          className={cn(
-                            'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                            seatBadge.classes
-                          )}
-                        >
-                          {seatBadge.label}
-                        </span>
-                      </td>
+                        {/* Departure */}
+                        <td className="px-4 py-3 text-slate-600">
+                          {fmtTime(bus.scheduled_departure)}
+                        </td>
 
-                      {/* Status badge */}
-                      <td className="px-4 py-3">
-                        <span
-                          className={cn(
-                            'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                            bus.is_active
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-slate-100 text-slate-500'
-                          )}
-                        >
-                          {bus.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
+                        {/* Driver */}
+                        <td className="px-4 py-3 text-slate-600">
+                          {bus.default_driver_name || <span className="text-slate-400">—</span>}
+                        </td>
 
-                      {/* Actions */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
-                          {/* Edit bus */}
-                          <button
-                            type="button"
-                            onClick={() => openEditBus(bus)}
-                            className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"
-                            title="Edit bus"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
+                        {/* Students */}
+                        <td className="px-4 py-3 text-slate-600">
+                          {bus.student_count}/{bus.capacity}
+                        </td>
 
-                          {/* Deactivate / Reactivate */}
-                          {bus.is_active ? (
-                            <button
-                              type="button"
-                              onClick={() => openDeactivate(bus.id)}
-                              className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-300"
-                              title="Deactivate bus"
-                            >
-                              <PowerOff className="h-4 w-4" />
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => openReactivate(bus.id)}
-                              className="rounded p-1.5 text-slate-400 hover:bg-green-50 hover:text-green-600 focus:outline-none focus:ring-2 focus:ring-green-300"
-                              title="Reactivate bus"
-                            >
-                              <Power className="h-4 w-4" />
-                            </button>
-                          )}
-
-                          {/* Expand/collapse route */}
-                          <button
-                            type="button"
-                            onClick={() => toggleExpand(bus.id)}
-                            className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"
-                            title={isExpanded ? 'Collapse route' : 'Expand route'}
-                          >
-                            {isExpanded ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
+                        {/* Seats badge */}
+                        <td className="px-4 py-3">
+                          <span
+                            className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                              seatBadge.classes
                             )}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                          >
+                            {seatBadge.label}
+                          </span>
+                        </td>
 
-                    {/* Expanded route panel */}
-                    {isExpanded && (
-                      <RoutePanel
-                        busId={bus.id}
-                        route={busRoute[bus.id]}
-                        isRouteLoading={busRouteLoading[bus.id]}
-                        routeError={busRouteError[bus.id]}
-                        onEditRoute={openEditRoute}
-                        onCreateRoute={openCreateRoute}
-                        onAddStop={openAddStop}
-                        onEditStop={openEditStop}
-                        onDeleteStop={openDeleteStop}
-                        onMoveStop={handleMoveStop}
-                        colSpan={COL_COUNT}
-                        reorderError={reorderError[bus.id] || null}
-                        assignedStudents={busStudents[bus.id] || []}
-                        isStudentsLoading={busStudentsLoading[bus.id] || false}
-                        studentsError={busStudentsError[bus.id] || null}
-                        onAssignStudent={openAssignStudent}
-                        onUnassignStudent={openUnassignStudent}
-                      />
-                    )}
-                  </Fragment>
-                );
-              })}
-          </tbody>
-        </table>
-      </div>
+                        {/* Status badge */}
+                        <td className="px-4 py-3">
+                          <span
+                            className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                              bus.is_active
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-slate-100 text-slate-500'
+                            )}
+                          >
+                            {bus.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-1">
+                            {/* Edit bus */}
+                            <button
+                              type="button"
+                              onClick={() => openEditBus(bus)}
+                              className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                              title="Edit bus"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+
+                            {/* Deactivate / Reactivate */}
+                            {bus.is_active ? (
+                              <button
+                                type="button"
+                                onClick={() => openDeactivate(bus.id)}
+                                className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-300"
+                                title="Deactivate bus"
+                              >
+                                <PowerOff className="h-4 w-4" />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => openReactivate(bus.id)}
+                                className="rounded p-1.5 text-slate-400 hover:bg-green-50 hover:text-green-600 focus:outline-none focus:ring-2 focus:ring-green-300"
+                                title="Reactivate bus"
+                              >
+                                <Power className="h-4 w-4" />
+                              </button>
+                            )}
+
+                            {/* Expand/collapse route */}
+                            <button
+                              type="button"
+                              onClick={() => toggleExpand(bus.id)}
+                              className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                              title={isExpanded ? 'Collapse route' : 'Expand route'}
+                            >
+                              {isExpanded ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Expanded route panel */}
+                      {isExpanded && (
+                        <RoutePanel
+                          busId={bus.id}
+                          route={busRoute[bus.id]}
+                          isRouteLoading={busRouteLoading[bus.id]}
+                          routeError={busRouteError[bus.id]}
+                          onEditRoute={openEditRoute}
+                          onCreateRoute={openCreateRoute}
+                          onAddStop={openAddStop}
+                          onEditStop={openEditStop}
+                          onDeleteStop={openDeleteStop}
+                          onMoveStop={handleMoveStop}
+                          colSpan={COL_COUNT}
+                          reorderError={reorderError[bus.id] || null}
+                          assignedStudents={busStudents[bus.id] || []}
+                          isStudentsLoading={busStudentsLoading[bus.id] || false}
+                          studentsError={busStudentsError[bus.id] || null}
+                          onAssignStudent={openAssignStudent}
+                          onUnassignStudent={openUnassignStudent}
+                        />
+                      )}
+                    </Fragment>
+                  );
+                })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* ── Mobile card list — visible on mobile, hidden on md+ ── */}
@@ -2402,7 +2402,7 @@ export default function BusesPage() {
       </div>
 
       {/* ── Pagination ─────────────────────────────────── */}
-      {pagination && pagination.total_pages > 1 && (
+      {pagination && pagination.totalPages > 1 && (
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           {/* Previous */}
           <button
@@ -2415,7 +2415,7 @@ export default function BusesPage() {
           </button>
 
           {/* Page numbers */}
-          {getVisiblePages(currentPage, pagination.total_pages).map(
+          {getVisiblePages(currentPage, pagination.totalPages).map(
             (item, idx) =>
               item === '...' ? (
                 // Non-clickable ellipsis separator
@@ -2446,7 +2446,7 @@ export default function BusesPage() {
           <button
             type="button"
             onClick={() => goToPage(currentPage + 1)}
-            disabled={currentPage >= pagination.total_pages}
+            disabled={currentPage >= pagination.totalPages}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Next
