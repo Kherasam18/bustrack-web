@@ -86,3 +86,18 @@ export async function resendForgotPasswordOtp(email) {
   await forgotPasswordSchoolAdmin(email);
 }
 
+/**
+ * Changes the authenticated School Admin's password.
+ * Requires the user to be logged in — the JWT is attached automatically.
+ * @param {string} currentPassword — the user's current password
+ * @param {string} newPassword — the desired new password (min 8 chars)
+ * @returns {Promise<object>} — the full response data envelope
+ */
+export async function changeSchoolAdminPassword(currentPassword, newPassword) {
+  const response = await api.post('/api/auth/school-admin/change-password', {
+    current_password: currentPassword,
+    new_password: newPassword,
+  });
+  return response.data;
+}
+
